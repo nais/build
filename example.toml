@@ -1,0 +1,149 @@
+# NAIS build example configuration file
+#
+# SYNOPSIS:
+#   nb build
+#   nb publish
+#   nb deploy
+#   nb  # whole pipeline?
+#
+# JOB FLOW:
+#   [BUILD AND TEST] ---> [PUBLISH] ---> [DEPLOY]
+#
+# Example job flows:
+#
+# docker(sdk) -> image:tag -> publish(gar) -> deploy(dev-gcp, prod-gcp)
+# config(sdk) ------------------------------^
+# config(sdk, image-version) -> deploy(dev-gcp, prod-gcp)
+# directory(sdk) -> directory -> deploy(cdn)
+# binary(sdk) -> executable -> publish(github)
+
+# General job options.
+description = "Build and publish myapplication"
+team = "foo"
+pre_build_script = "pre_build.sh"
+post_build_script = "post_build.sh"
+
+# Select an SDK based on which technology is being used, such as
+# Go, Rust, Node, PHP, Python, Java (Maven/Ant/Gradle), etc...
+#
+# SDK's define how the package is being built.
+#
+# FIXME: this is the default, and then
+# FIXME: place overrides inside every build step?
+[build.sdk]
+type = "rust"  # rust|go|php|...
+version = "latest"  # latest|1.22|1.22.4|1|...
+
+# Branch deploy rules.
+# For main or master, deploy to these two environments automatically.
+[branch."^(main|master)$"]
+prod-gcp.strategy = "auto"
+dev-gcp.strategy = "auto"
+prod-gcp.ingresses = ["https://foo.bar/baz"]  # maybe?
+
+# For any branch starting with 'feature-preview-', deploy to dev-gcp,
+# adding the given suffix to any resource names deployed.
+[branch."^feature-preview-(.+)$"]
+prod-gcp.strategy = "manual"  # or metadata that leads to "promote" -> trigger workflow
+dev-gcp.strategy = "test-release"  # in case of OK release, trigger next environment
+dev-gcp.trigger-next-environment = "prod-gcp"  # only changes the image?
+dev-gcp.suffix = "$1"
+
+# Change only the nais.yaml configuration of an application?
+# FIXME: maybe
+[build.config]
+source = ".nais/nais.yml"
+
+# Docker build parameters.
+#
+# We use a combination of all parameters to generate a "standard"
+# opinionated Docker image with reasonable defaults, such as alpine/distroless,
+# correct setup of user/group, etc.
+#
+# Parameters will likely result in a Dockerfile, which can then be
+# build into an image using standard tooling.
+#
+# All parameters are optional.
+#
+[build.docker.myapplication]
+pre_build_script = "pre_build.sh"
+post_build_script = "post_build.sh"
+sdk.type = "rust"  # maybe?
+sdk.version = "latest"  # maybe?
+builder_image = "library/rust:1"  # autodetected from SDK type
+base_image = "alpine:3"  # or distroless, or autodetected from SDK
+copy_files."my directory" = "/my/directory"
+env.FOO = "bar"
+env.MYVARIABLE = "myvalue"
+tag = "VERSION_TEMPLATE"
+tcp_ports = [8080]
+udp_ports = [53]
+user.id = 65534
+user.name = "nobody"
+group.id = 65534
+group.name = "nobody"
+output_files = ["/app/*"]
+
+# FIXME: multi-stage images with multiple SDKs?
+[build.docker.mynodefiles]
+output_files = ["/my/static/files"]
+
+[build.docker.final-application]
+inputs = ["build.docker.myapplication", "build.docker.nodefiles"]
+
+
+# Build a binary, but do it outside of Docker.
+# "target" referns to a valid SDK target.
+#
+# Examples:
+# * go build -o <ARTIFACT> cmd/<TARGET>/*.go
+# * cargo build --release --target <TARGET>
+# * npm build <TARGET>
+#
+# ...etc
+[build.binary.myapplication]
+sdk.type = "rust"  # maybe?
+sdk.version = "latest"  # maybe?
+sdk.target = "release"
+artifact = "./target/release/myapplication"
+
+# This binary is build using the same target.
+# One target will only be built once.
+[build.binary.myhelper]
+sdk.type = "rust"  # maybe?
+sdk.version = "latest"  # maybe?
+sdk.target = "release"
+location = "./target/release/myhelper"
+
+# This binary is also
+[build.directory.myoutput]
+sdk.type = "node"  # maybe?
+sdk.version = "22"  # maybe?
+sdk.target = "webfiles"
+location = "./my_output_directory"
+
+# Create a GitHub release of one or more files.
+[publish.github]
+inputs = ["build.binary.myapplication", "build.binary.myhelper"]
+tag = "auto"
+version-template = "{{iso_date}}-{{refcount}}-{{sha}}"
+description = "myapplication+helper release {{ version }}"
+pre-release = false
+latest-release = true
+release-notes = "(auto-generated from commit log?)"
+
+# Release a Docker image and its attestation on Google Artifact Registry.
+[publish.gar]
+inputs = ["build.docker.final-application"]
+version-template = "{{iso_date}}-{{refcount}}-{{sha}}"
+
+# Single-page application deploy to NAIS CDN.
+[deploy.cdn]
+directory = "./my_static_files"
+destination = ""
+
+# Deploy an application to NAIS using nais deploy.
+[deploy.nais]
+tenant = "nav"
+nais_yaml = ".nais/nais.yml"
+

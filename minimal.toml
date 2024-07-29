@@ -1,0 +1,16 @@
+description = "Build and publish myapplication"
+
+[branches.main.environments]
+prod-gcp = "confirm"
+dev-gcp = "auto"
+
+[sdk]
+type = "maven"
+version = "3"
+build.target = "production"
+
+
+# nb inspect
+
+# Dockerfile:
+# FROM nais/java-builder

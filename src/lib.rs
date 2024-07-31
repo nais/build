@@ -1,67 +1,9 @@
+#![allow(dead_code)]
+
+mod pipeline;
+
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-
-/// NAIS build config.
-/// Can be specified in any directory and will result in a full run of a build pipeline.
-///
-/// Builds all the targets in `build`,
-/// and then goes on to deploy to all targets in `deploy`.
-struct Config<I> {
-    build: Vec<BuildConfig<I>>,
-    deploy: Vec<DeployConfig>,
-}
-
-/// 1. parameter detection and validation
-/// 2. execute runner for buildconfig I to produce outcome O
-/// 3. deploy outcome O to destination D
-
-/// Input parameters to a single build configuration.
-///
-struct BuildConfig<I> {
-    sdk: SDK,
-    input: I,
-}
-
-trait BuildRunner<B, D, R> where
-    B: Buildable<R>,
-    D: Deployable<R>,
-{
-    type Error;
-
-    fn run(&self, config: BuildConfig<B>) -> Result<R, Self::Error>{
-        todo!()
-        // let build_result = self.build(config)?;
-        // build_result.deploy()
-    }
-}
-
-trait Configuration<B, R>: Buildable<R> {
-    type Error;
-
-    fn configure(&self) -> Result<R, Self::Error>;
-}
-
-trait Deployable<R> {
-    type Error;
-
-    fn deploy(&self) -> Result<R, Self::Error>;
-}
-
-trait Buildable<R>: Deployable<R> {
-    fn build(&self) -> Result<R, Self::Error>;
-}
-
-struct NaisDeployImplementor;
-
-struct NaisDeployResult;
-
-impl Deployable<()> for NaisDeployImplementor {
-    type Error = ();
-
-    fn deploy(&self) -> Result<(), Self::Error> {
-        todo!()
-    }
-}
 
 struct BuildInput {
     nais_yaml: Option<String>,
@@ -108,37 +50,6 @@ enum BuildOutcome {
 struct UploadArtifact {
     docker_image: DockerImage,
     sign_attest: SignatureAndAttestation,
-}
-
-/// The various ways NAIS build will publish built artifacts.
-enum DeployOutcome {
-    /// Upload a docker image and its SLSA data to Artifact Registry.
-    UploadArtifact(UploadArtifact),
-
-    /// Deploy a containerized app.
-    /// These deploys need a combination of a Docker image and an Application spec.
-    /// - detect image name
-    /// - detect customer (NAV)
-    /// - detect environment (prod-gcp)
-    /// - detect namespace (team)
-    /// - branched deployments for PR's
-    NaisDeploy(NaisDeployInputParams),
-
-    /// Deploy a directory to the team's CDN bucket.
-    /// - detect source
-    /// - detect destination
-    /// - upload to bucket
-    CDNDeploy(FileTree),
-
-    /// building a go app
-    /// - detect go.mod from file system
-    /// - detect which binaries to build
-    /// - go get
-    /// - go build (flags for docker, architecture, etc)
-    /// - go test
-    /// - linting
-    /// - staticcheck
-    ReleaseGithubBinary(Binary),
 }
 
 enum Version {

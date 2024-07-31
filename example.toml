@@ -125,7 +125,6 @@ location = "./my_output_directory"
 # Create a GitHub release of one or more files.
 [publish.github]
 inputs = ["build.binary.myapplication", "build.binary.myhelper"]
-tag = "auto"
 version-template = "{{iso_date}}-{{refcount}}-{{sha}}"
 description = "myapplication+helper release {{ version }}"
 pre-release = false
@@ -144,6 +143,9 @@ destination = ""
 
 # Deploy an application to NAIS using nais deploy.
 [deploy.nais]
+inputs = ["publish.gar"]
 tenant = "nav"
 nais_yaml = ".nais/nais.yml"
+branches = ["main", "master"]
+clusters = ["dev-gcp", "prod-gcp"]
 

@@ -1,0 +1,24 @@
+@startuml
+
+abstract "Docker build" as docker_build
+class "NAIS deploy 'unit'" as nais_deploy
+abstract credentials
+abstract tenant
+class "K8S resources" as k8s_resources
+class "Metadata" as metadata
+abstract "Template engine" as templating
+
+docker_build --> docker_image_id
+
+team_slug --> templating
+raw_yaml_files --> templating
+vars --> templating
+docker_image_id --> templating
+
+templating --> k8s_resources
+
+metadata --> nais_deploy:> repository,\nteam,\ngit-sha,\ncorrelation-id
+destination --> nais_deploy:> cluster,\ntenant
+k8s_resources --> nais_deploy:> yaml
+
+@enduml

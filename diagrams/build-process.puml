@@ -2,16 +2,16 @@
 
 == configure ==
 root --> fs: read configuration file
-root --> fs: detect sdk
+root --> fs: detect and validate sdk
 root --> root: determine outputs
 root --> root: validate build graph
 root --> fs: collect build, publish and deploy parameters
+root --> sdk: detect and validate build target
 
 == build/docker ==
 root --> root: determine image name
 root --> root: determine tag/version
 root --> sdk: generate multi-stage dockerfile
-sdk --> sdk: detect and validate build target
 sdk --> sdk: determine base image for builder
 sdk --> sdk: detect any mid-stage base builders
 sdk --> sdk: determine final base image

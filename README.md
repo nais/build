@@ -10,9 +10,16 @@ such as Github workflows or Jenkins.
 * Publishes built artifacts to Google Artifact Registry and GitHub releases.
 * Deploys artifacts to Kubernetes or CDN.
 
+## What changes between SDKs?
+* Docker base image
+* 
+
 ## How to build apps
 
 ### Go
+* override go.mod with any sdk-controlled version bumps
+  * "go 1.22"
+  * "toolchain 1.22.5"
 * go get
 * go test
 * linting

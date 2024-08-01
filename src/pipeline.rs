@@ -1,6 +1,7 @@
 /// Docker image name and tag combination.
 type ImageID = String;
 
+/// Templatable Kubernetes YAML file
 struct ResourceYaml;
 
 struct File;
@@ -24,7 +25,7 @@ struct NaisDeployMetadata {
     actor: String,
 }
 
-struct NaisDeployPackage {
+struct NaisDeployUnit {
     resources: Vec<ResourceYaml>,
     metadata: NaisDeployMetadata,
     // destination is cluster+tenant, but is not a part of the "artifact" itself
@@ -41,7 +42,7 @@ enum Artifact {
 
     /// A nais deploy artifact is the collection of data and parameters
     /// required to deploy an image as a container on the NAIS platform.
-    NaisDeploy(NaisDeployPackage),
+    NaisDeploy(NaisDeployUnit),
     Binary(File),
     Directory(Directory),
 }
@@ -53,6 +54,7 @@ enum Publish {
     ArtifactRegistry,
 
     /// Create a GitHub release and add the files to it.
+    /// https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release
     GitHubRelease(Vec<File>),
 }
 
@@ -67,7 +69,7 @@ enum Deploy {
     /// - detect environment (prod-gcp)
     /// - detect namespace (team)
     /// - branched deployments for PR's
-    NaisDeploy(NaisDeployPackage),
+    NaisDeploy(NaisDeployUnit),
 
     /// Deploy a directory to the team's CDN bucket.
     /// - detect source

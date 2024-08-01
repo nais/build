@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod pipeline;
+mod sdk;
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -50,18 +51,6 @@ enum BuildOutcome {
 struct UploadArtifact {
     docker_image: DockerImage,
     sign_attest: SignatureAndAttestation,
-}
-
-enum Version {
-    Latest,
-    Major(String),
-    Exact(String),
-}
-
-enum SDK {
-    Go(Version),
-    Rust(Version),
-    Java(Version),
 }
 
 struct PosixUser {

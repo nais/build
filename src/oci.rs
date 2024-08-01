@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+const NAIS_DEFAULT_UID_GID: usize = 1069;
+
 /// UID/username combination inside a POSIX environment.
 pub struct PosixUser {
     pub uid: usize,
@@ -9,7 +11,7 @@ pub struct PosixUser {
 impl Default for PosixUser {
     fn default() -> Self {
         Self {
-            uid: 65534,
+            uid: NAIS_DEFAULT_UID_GID,
             name: "nobody".into(),
         }
     }
@@ -24,7 +26,7 @@ pub struct PosixGroup {
 impl Default for PosixGroup {
     fn default() -> Self {
         Self {
-            gid: 65534,
+            gid: NAIS_DEFAULT_UID_GID,
             name: "nogroup".into(),
         }
     }

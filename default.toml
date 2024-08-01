@@ -1,0 +1,28 @@
+description = "Default configuration file"
+
+# The default is to always build and test, but not deploy.
+[ci.branch.".*"]
+build = true
+release = false
+deploy.environments = []
+
+# Branch deploy rules.
+# For main or master, deploy to these two environments automatically.
+[ci.branch."^(main|master)$"]
+deploy.environments = ["dev-gcp", "prod-gcp"]
+deploy.parallel = false
+
+[rust]
+version = "latest" # or nightly, or ...
+
+[java]
+version = "18"
+
+[maven]
+version = "3"
+
+[targets]
+# auto-detect og bygg alle
+
+[output]
+type = "deploy"

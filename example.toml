@@ -34,20 +34,26 @@ post_build_script = "post_build.sh"
 type = "rust"  # rust|go|php|...
 version = "latest"  # latest|1.22|1.22.4|1|...
 
+# The default is to always build.
+[ci.branch.".*"]
+build = true
+deploy.environments = []
+
 # Branch deploy rules.
 # For main or master, deploy to these two environments automatically.
-[branch."^(main|master)$"]
-prod-gcp.strategy = "auto"
-dev-gcp.strategy = "auto"
-prod-gcp.ingresses = ["https://foo.bar/baz"]  # maybe?
+[ci.branch."^(main|master)$"]
+release = true
+deploy.environments = ["dev-gcp", "prod-gcp"]
+deploy.parallel = false
 
+# EXAMPLE. Not part of defaults.
 # For any branch starting with 'feature-preview-', deploy to dev-gcp,
 # adding the given suffix to any resource names deployed.
-[branch."^feature-preview-(.+)$"]
-prod-gcp.strategy = "manual"  # or metadata that leads to "promote" -> trigger workflow
-dev-gcp.strategy = "test-release"  # in case of OK release, trigger next environment
-dev-gcp.trigger-next-environment = "prod-gcp"  # only changes the image?
-dev-gcp.suffix = "$1"
+[ci.branch."^feature-preview-(.+)$".deploy]
+environments = ["dev-gcp"]
+parallel = false
+override.dev-gcp.vars.foo = "baz"
+override.dev-gcp.vars.ingresses = ["gemini-{$1}.dev-nais"]
 
 # Change only the nais.yaml configuration of an application?
 # FIXME: maybe

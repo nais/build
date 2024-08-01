@@ -2,8 +2,9 @@
 
 mod pipeline;
 mod sdk;
+mod oci;
+mod build;
 
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 struct BuildInput {
@@ -53,16 +54,6 @@ struct UploadArtifact {
     sign_attest: SignatureAndAttestation,
 }
 
-struct PosixUser {
-    id: usize,
-    name: String,
-}
-
-struct PosixGroup {
-    id: usize,
-    name: String,
-}
-
 struct DockerImage(String);
 
 struct PushDockerImageParams {
@@ -71,40 +62,6 @@ struct PushDockerImageParams {
     image_name: String,
 }
 
-struct BuildDockerImageParams {
-    /// Docker image for building the application.
-    builder_image: DockerImage,
-
-    /// Run the following build script inside the build container.
-    build_script: String,
-
-    /// Which image to use as output base image.
-    base_image: DockerImage,
-
-    /// How to name the output Docker image.
-    output_image: DockerImage,
-
-    /// Which user to set up as the application owner inside the image.
-    /// The application will be run as this user.
-    user: PosixUser,
-
-    /// Which group to set up as the application owner inside the image.
-    /// The application will be run as this group.
-    group: PosixGroup,
-
-    /// Files to copy into the build container.
-    input_files: Vec<String>,
-
-    /// Files to copy from the build container to the application image,
-    /// once the build script has been run to completion.
-    output_files: HashMap<String, String>,
-
-    /// Auto-expose these ports
-    ports: Vec<u16>,
-
-    /// Default values for environment variables.
-    env_vars: HashMap<String, String>,
-}
 
 struct NaisDeployInputParams {
     artifact: UploadArtifact,

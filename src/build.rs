@@ -52,7 +52,6 @@ pub mod rust {
                 group: PosixGroup::default(),
                 input_files: vec![],
                 output_files: Default::default(),
-                ports: vec![],
                 env_vars: Default::default(),
             }
         }

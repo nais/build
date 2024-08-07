@@ -10,10 +10,6 @@ such as Github workflows or Jenkins.
 * Publishes built artifacts to Google Artifact Registry and GitHub releases.
 * Deploys artifacts to Kubernetes or CDN.
 
-## What changes between SDKs?
-* Docker base image
-* 
-
 ## How to build apps
 
 ### Go

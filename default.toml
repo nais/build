@@ -1,28 +1,51 @@
 description = "Default configuration file"
 
+#
+# Branch deploy rules.
+#
+
 # The default is to always build and test, but not deploy.
-[ci.branch.".*"]
-build = true
-release = false
+[branch.".*"]
+output = "build"  # or "release" if you want to test images
 deploy.environments = []
 
-# Branch deploy rules.
-# For main or master, deploy to these two environments automatically.
-[ci.branch."^(main|master)$"]
+# For main or master, we do a build, release and deploy.
+# Deploys will be done sequentially to dev-gcp and prod-gcp.
+[branch."^(main|master)$"]
+output = "deploy"
 deploy.environments = ["dev-gcp", "prod-gcp"]
 deploy.parallel = false
 
-[rust]
-version = "latest" # or nightly, or ...
+#
+# SDK definitions.
+# Software Development Kits definitions know how to build software (inside Docker).
+#
 
-[java]
-version = "18"
+# https://hub.docker.com/_/rust
+[sdk.rust]
+build_docker_image = "rust:1-alpine"
+runtime_docker_image = "alpine:3"
 
-[maven]
+# https://hub.docker.com/_/golang
+[sdk.go]
+build_docker_image = "golang:1-alpine"
+runtime_docker_image = "alpine:3"
+
+# https://hub.docker.com/_/eclipse-temurin
+[sdk.java]
+build_docker_image = "eclipse-temurin:22-alpine"
+runtime_docker_image = "eclipse-temurin:22-alpine"
+
+# Maven is currently at 3.9.8
+[sdk.maven]
 version = "3"
 
-[targets]
-# auto-detect og bygg alle
-
-[output]
-type = "deploy"
+[build]
+type = "docker"
+sdk = "rust"
+version = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
+output_files = ["/nais-build/*"]
+user.id = 1069
+user.name = "nobody"
+group.id = 1069
+group.name = "nobody"

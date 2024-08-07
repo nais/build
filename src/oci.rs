@@ -65,7 +65,7 @@ pub struct DockerBuildParams {
     pub output_files: HashMap<String, String>,
 
     /// Auto-expose these ports
-    pub ports: Vec<u16>,
+    //pub ports: Vec<u16>,
 
     /// Default values for environment variables.
     pub env_vars: HashMap<String, String>,

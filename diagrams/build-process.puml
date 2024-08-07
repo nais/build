@@ -2,19 +2,26 @@
 
 == prepare ==
 main --> fs: read and validate configuration file
-main --> main: determine outputs
-main --> main: validate build graph
+note right: read from disk\n\
+load structure\n\
+build dependency graph
 main --> fs: collect build, publish and deploy parameters
+note right: detect SDK\n\
+detect SDK parameters\n\
+read secrets
 main --> sdk: detect and validate build target
 
 == build/docker ==
-main --> main: determine image name
-main --> main: determine tag/version
+main --> sdk: determine image name
+note right: HOST/TEAM/APP:VERSION
+main --> sdk: determine tag/version
+note right: datestamp + git sha
 main --> sdk: generate multi-stage dockerfile
-sdk --> sdk: determine base image for builder
-sdk --> sdk: detect any mid-stage base builders
-sdk --> sdk: determine final base image
-main --> main: run docker build
+note right: \
+determine base image for builder\n\
+define any mid-stage base builders\n\
+determine final base image
+main --> sdk: build image
 main --> slsa: generate signature and attestation
 
 == publish/gar ==
@@ -26,9 +33,9 @@ main --> github: create release in repo
 main --> github: upload assets
 
 == deploy/nais ==
-main --> main: assemble metadata
-main --> main: insert variables into nais.yaml
-main --> deploy: run deploy
+main --> sdk: render yaml templates
+main --> sdk: generate deploy metadata
+main --> deploy: deploy application
 
 == deploy/cdn ==
 main --> main: determine destination directory

@@ -10,6 +10,22 @@ such as Github workflows or Jenkins.
 * Publishes built artifacts to Google Artifact Registry and GitHub releases.
 * Deploys artifacts to Kubernetes or CDN.
 
+## Synopsis
+
+Generate a configuration file:
+    nb default-config > build.toml
+
+Run from local computer:
+    nb
+    nb --dockerfile=Dockerfile
+
+Check configuration:
+    nb check || echo "failure"
+    nb dockerfile > Dockerfile
+
+Run from a Github Workflow, set up a workflow.yml file that runs:
+    nb --auto   # builds, releases, deploys
+
 ## How to build apps
 
 ### Go

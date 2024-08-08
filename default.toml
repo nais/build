@@ -1,4 +1,13 @@
+#
+# NAIS build --- default configuration file.
+#
+# All other build configs depend on this file.
+# Changing values here affects build parameters for everyone.
+# Version bumps to Docker images can be done here.
+#
+
 description = "Default configuration file"
+team = ""  # default = auto-detect from nais.yaml
 
 #
 # Branch deploy rules.
@@ -33,8 +42,14 @@ runtime_docker_image = "alpine:3"
 
 # https://hub.docker.com/_/eclipse-temurin
 [sdk.java]
+build_system = "maven"  # or gradle, ...
 build_docker_image = "eclipse-temurin:22-alpine"
 runtime_docker_image = "eclipse-temurin:22-alpine"
+
+[sdk.kotlin]
+#build_system = "kt"  # or gradle, ...
+#build_docker_image = "eclipse-temurin:22-alpine"
+#runtime_docker_image = "eclipse-temurin:22-alpine"
 
 # Maven is currently at 3.9.8
 [sdk.maven]
@@ -42,10 +57,28 @@ version = "3"
 
 [build]
 type = "docker"
-sdk = "rust"
-version = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
+sdk = ""   # auto-detect as default
+
+[build.docker]
+tag = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
+auto_generate = true
 output_files = ["/nais-build/*"]
 user.id = 1069
 user.name = "nobody"
 group.id = 1069
 group.name = "nobody"
+
+[release]
+type = "gar"
+
+[release.gar]
+
+#
+# Deploy an application to NAIS using nais deploy.
+#
+[deploy]
+type = "nais"
+
+[deploy.nais]
+tenant = "nav"
+nais_yaml = ""  # blank value means to auto-detect from file system

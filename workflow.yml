@@ -1,0 +1,22 @@
+name: Build and deploy
+on:
+  push: '*'
+jobs:
+  nais_build:
+    name: Nais build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nais/build@v1
+        #outputs:
+          #- image.tag
+          #- image.version
+        with:
+          team: <MY-TEAM> # Replace
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }} # Provided as Organization Secret
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }} # Provided as Organization Variable
+          nais_yaml: .nais/app.yaml
+      #- uses: nais/fasit-deploy@v2

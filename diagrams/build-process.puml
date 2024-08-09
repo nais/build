@@ -23,6 +23,7 @@ define any mid-stage base builders\n\
 determine final base image
 main --> sdk: build image
 main --> slsa: generate signature and attestation
+note right: run asynchronously to reduce build time?
 
 == publish/gar ==
 main --> gar: upload docker image

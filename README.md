@@ -57,6 +57,10 @@ Run from a Github Workflow, set up `.github/workflows/nb.yml` file that runs:
 ## Developing
 This project is written in stable Rust, with a recommended minimal version of 1.80.
 
+### Github workflow templates
+* https://github.com/navikt/sif-gha-workflows/tree/main/.github/workflows
+* https://github.com/navikt/fp-gha-workflows/tree/main/.github/workflows
+
 ### Build process
 
 #### Go
@@ -73,8 +77,10 @@ This project is written in stable Rust, with a recommended minimal version of 1.
 #### Rust
 * cargo build --release
 
-#### Java
+#### Java/Kotlin
 * TODO
-
-#### Kotlin
-* TODO
+* Env (settes med fordel i nais.yml):
+  * `TZ` (kan settes automatisk i Naiserator?)
+    * Taes opp til diskusjon
+  * `MAX_RAM_PERCENTAGE=90`
+  * `JVM_OPTS="-Xmx4G -Xms1G"` (obsolete?)

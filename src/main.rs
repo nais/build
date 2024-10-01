@@ -1,8 +1,10 @@
-use clap::{Parser, Subcommand};
-use thiserror::Error;
 use crate::DetectBuildTargetError::*;
 use crate::Error::*;
 use crate::Language::*;
+use clap::{Parser, Subcommand};
+use std::io::Write;
+use std::process::Stdio;
+use thiserror::Error;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -43,13 +45,29 @@ fn main() -> Result<(), Error> {
             println!("{}", dockerfile.dockerfile());
             Ok(())
         }
-        Commands::Build => Ok(()),
+        Commands::Build => {
+            let sdk = detect_sdk(&args.source_directory)?;
+            let dockerfile = GolangDockerBuilder::new(sdk, &args.source_directory)?;
+            let mut file = tempfile::NamedTempFile::new()?;
+            file.write_all(dockerfile.dockerfile().as_bytes())?;
+
+            let output = std::process::Command::new("docker")
+                .arg("build")
+                .arg("--file")
+                .arg(file.path())
+                .arg(&args.source_directory)
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status()?;
+
+            println!("{:?}", output);
+            Ok(())
+        }
     }
 }
 
-
 enum Language {
-    Go
+    Go,
 }
 
 #[allow(dead_code)]
@@ -76,12 +94,18 @@ impl SDK {
     }
 
     /// Return a list of binaries that can be built.
-    fn detect_build_targets(&self, filesystem_path: &str) -> Result<Vec<String>, DetectBuildTargetError> {
+    fn detect_build_targets(
+        &self,
+        filesystem_path: &str,
+    ) -> Result<Vec<String>, DetectBuildTargetError> {
         std::fs::read_dir(filesystem_path.to_owned() + "/cmd")?
-            .map(|dir_entry|
+            .map(|dir_entry| {
                 Ok(dir_entry?
-                    .file_name().to_str().ok_or(EmptyFilename)?
-                    .to_string()))
+                    .file_name()
+                    .to_str()
+                    .ok_or(EmptyFilename)?
+                    .to_string())
+            })
             .collect()
     }
 }
@@ -102,6 +126,9 @@ enum Error {
 
     #[error("detect build target: {0}")]
     DetectBuildTargetError(#[from] DetectBuildTargetError),
+
+    #[error("filesystem error: {0}")]
+    FilesystemError(#[from] std::io::Error),
 }
 
 fn detect_go(filesystem_path: &str) -> Option<SDK> {
@@ -158,13 +185,15 @@ impl GolangDockerBuilder {
                 )
             })
             .fold(String::new(), |acc, item| acc + "\n" + &item)
-            .trim().to_string();
+            .trim()
+            .to_string();
         let binary_copy_commands: String = self
             .targets
             .iter()
             .map(|item| format!("COPY --from=builder /build/{} /app/{}", item, item))
             .fold(String::new(), |acc, item| acc + "\n" + &item)
-            .trim().to_string();
+            .trim()
+            .to_string();
         let default_target = if self.targets.len() == 1 {
             format!(r#"CMD ["/app/{}"]"#, self.targets[0])
         } else {

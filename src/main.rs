@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use crate::Error::SDKNotDetected;
+use thiserror::Error;
+use crate::DetectBuildTargetError::*;
+use crate::Error::*;
 use crate::Language::*;
 
 /// Simple program to greet a person
@@ -37,13 +39,14 @@ fn main() -> Result<(), Error> {
         }
         Commands::Dockerfile => {
             let sdk = detect_sdk(&args.source_directory)?;
-            let dockerfile = DockerBuildParams::from(sdk);
+            let dockerfile = DockerBuildParams::new(sdk, &args.source_directory)?;
             println!("{}", dockerfile.dockerfile());
             Ok(())
         }
         Commands::Build => Ok(()),
     }
 }
+
 
 enum Language {
     Go
@@ -70,19 +73,42 @@ impl SDK {
             Go => "golang:1".into(),
         }
     }
+
+    /// Return a list of binaries that can be built.
+    fn detect_build_targets(&self, filesystem_path: &str) -> Result<Vec<String>, DetectBuildTargetError> {
+        std::fs::read_dir(filesystem_path.to_owned() + "/cmd")?
+            .map(|dir_entry|
+                Ok(dir_entry?
+                    .file_name().to_str().ok_or(EmptyFilename)?
+                    .to_string()))
+            .collect()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
+enum DetectBuildTargetError {
+    #[error("filesystem error: {0}")]
+    FilesystemError(#[from] std::io::Error),
+
+    #[error("target name is empty")]
+    EmptyFilename,
+}
+
+#[derive(Error, Debug)]
 enum Error {
+    #[error("no compatible SDKs for this source directory")]
     SDKNotDetected,
+
+    #[error("detect build target: {0}")]
+    DetectBuildTargetError(#[from] DetectBuildTargetError)
 }
 
 fn detect_go(filesystem_path: &str) -> Option<SDK> {
-    let file_stat = std::fs::metadata(filesystem_path.to_owned() +"/go.mod").ok()?;
+    let file_stat = std::fs::metadata(filesystem_path.to_owned() + "/go.mod").ok()?;
     if !file_stat.is_file() {
-        return None
+        return None;
     }
-    Some(SDK{
+    Some(SDK {
         language: Go,
         version: "1".into(),
     })
@@ -90,7 +116,7 @@ fn detect_go(filesystem_path: &str) -> Option<SDK> {
 
 fn detect_sdk(filesystem_path: &str) -> Result<SDK, Error> {
     if let Some(sdk) = detect_go(filesystem_path) {
-        return Ok(sdk)
+        return Ok(sdk);
     }
     Err(SDKNotDetected)
 }
@@ -106,6 +132,17 @@ struct DockerBuildParams {
 }
 
 impl DockerBuildParams {
+    fn new(sdk: SDK, filesystem_path: &str) -> Result<Self, Error> {
+        let binaries = sdk.detect_build_targets(filesystem_path)?;
+
+        Ok(Self {
+            binaries,
+            builder_image: sdk.builder_docker_image(),
+            runtime_image: sdk.runtime_docker_image(),
+            start_hook: None,
+            end_hook: None,
+        })
+    }
     fn dockerfile(&self) -> String {
         let builder_image = &self.builder_image;
         let runtime_image = &self.runtime_image;
@@ -145,17 +182,5 @@ WORKDIR /app
 CMD ["/app/naiserator"]
 "#,
         )
-    }
-}
-
-impl From<SDK> for DockerBuildParams {
-    fn from(sdk: SDK) -> Self {
-        Self {
-            builder_image: sdk.builder_docker_image(),
-            runtime_image: sdk.runtime_docker_image(),
-            start_hook: None,
-            end_hook: None,
-            binaries: vec!["naiserator".into(), "naiserator_webhook".into()],
-        }
     }
 }

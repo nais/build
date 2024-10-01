@@ -153,7 +153,7 @@ impl GolangDockerBuilder {
             .iter()
             .map(|item| {
                 format!(
-                    "RUN go build -a -installsuffix cgo -o /build/{} cmd/{}",
+                    "RUN go build -a -installsuffix cgo -o /build/{} ./cmd/{}",
                     item, item
                 )
             })

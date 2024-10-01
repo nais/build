@@ -1,9 +1,14 @@
 use clap::{Parser, Subcommand};
+use crate::Error::SDKNotDetected;
+use crate::Language::*;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    #[arg(short, long, default_value = ".")]
+    source_directory: String,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -31,7 +36,7 @@ fn main() -> Result<(), Error> {
             Ok(())
         }
         Commands::Dockerfile => {
-            let sdk = detect_sdk("/")?;
+            let sdk = detect_sdk(&args.source_directory)?;
             let dockerfile = DockerBuildParams::from(sdk);
             println!("{}", dockerfile.dockerfile());
             Ok(())
@@ -40,24 +45,54 @@ fn main() -> Result<(), Error> {
     }
 }
 
+enum Language {
+    Go
+}
+
 #[allow(dead_code)]
+/// SDK is Language/Framework + Version
 struct SDK {
-    language: (),
-    version: (),
-    build_image: String,
-    runtime_image: String,
+    language: Language,
+    version: String,
+    //build_image: String,
+    //runtime_image: String,
+}
+
+impl SDK {
+    fn builder_docker_image(&self) -> String {
+        match self.language {
+            Go => "golang:1".into(),
+        }
+    }
+
+    fn runtime_docker_image(&self) -> String {
+        match self.language {
+            Go => "golang:1".into(),
+        }
+    }
 }
 
 #[derive(Debug)]
-enum Error {}
+enum Error {
+    SDKNotDetected,
+}
 
-fn detect_sdk(_filesystem_path: &str) -> Result<SDK, Error> {
-    Ok(SDK {
-        language: (),
-        version: (),
-        build_image: "golang:1".into(),
-        runtime_image: "golang:1".into(),
+fn detect_go(filesystem_path: &str) -> Option<SDK> {
+    let file_stat = std::fs::metadata(filesystem_path.to_owned() +"/go.mod").ok()?;
+    if !file_stat.is_file() {
+        return None
+    }
+    Some(SDK{
+        language: Go,
+        version: "1".into(),
     })
+}
+
+fn detect_sdk(filesystem_path: &str) -> Result<SDK, Error> {
+    if let Some(sdk) = detect_go(filesystem_path) {
+        return Ok(sdk)
+    }
+    Err(SDKNotDetected)
 }
 
 struct DockerBuildParams {
@@ -116,8 +151,8 @@ CMD ["/app/naiserator"]
 impl From<SDK> for DockerBuildParams {
     fn from(sdk: SDK) -> Self {
         Self {
-            builder_image: sdk.build_image,
-            runtime_image: sdk.runtime_image,
+            builder_image: sdk.builder_docker_image(),
+            runtime_image: sdk.runtime_docker_image(),
             start_hook: None,
             end_hook: None,
             binaries: vec!["naiserator".into(), "naiserator_webhook".into()],

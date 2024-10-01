@@ -15,7 +15,7 @@ pub enum SDK {
 pub struct Go;
 
 impl DockerBuilder for Go {
-    fn build_params(&self, target: &str) -> DockerBuildParams {
+    fn build_params(&self, _target: &str) -> DockerBuildParams {
         todo!()
     }
 }

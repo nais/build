@@ -15,7 +15,7 @@ team = ""  # default = auto-detect from nais.yaml
 
 # The default is to always build and test, but not deploy.
 [branch.".*"]
-output = "build"  # or "release" if you want to test images
+output = "build"  # or "release" if you want to test images, or "deploy"
 deploy.environments = []
 
 # For main or master, we do a build, release and deploy.
@@ -23,6 +23,12 @@ deploy.environments = []
 [branch."^(main|master)$"]
 output = "deploy"
 deploy.environments = ["dev-gcp", "prod-gcp"]
+deploy.parallel = false
+
+[branch."^feature-preview-(.+)$"]
+output = "deploy"
+deploy.environments = ["dev-gcp"]
+deploy.prefix = "$1"
 deploy.parallel = false
 
 #
@@ -45,6 +51,9 @@ runtime_docker_image = "alpine:3"
 build_system = "maven"  # or gradle, ...
 build_docker_image = "eclipse-temurin:22-alpine"
 runtime_docker_image = "eclipse-temurin:22-alpine"
+# Steinsland sier:
+# build: ...
+# runtime: distroless
 
 [sdk.kotlin]
 #build_system = "kt"  # or gradle, ...
@@ -62,11 +71,18 @@ sdk = ""   # auto-detect as default
 [build.docker]
 tag = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
 auto_generate = true
+# input_files
 output_files = ["/nais-build/*"]
 user.id = 1069
 user.name = "nobody"
 group.id = 1069
 group.name = "nobody"
+
+# FROM build_image as builder
+# byggeprosessen
+
+# FROM base_runtime_image
+# COPY...
 
 [release]
 type = "gar"

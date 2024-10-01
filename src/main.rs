@@ -36,9 +36,7 @@ fn main() -> Result<(), Error> {
             println!("{}", dockerfile.dockerfile());
             Ok(())
         }
-        Commands::Build => {
-            Ok(())
-        }
+        Commands::Build => Ok(()),
     }
 }
 
@@ -76,12 +74,24 @@ impl DockerBuildParams {
     fn dockerfile(&self) -> String {
         let builder_image = &self.builder_image;
         let runtime_image = &self.runtime_image;
-        let binary_commands: String = self.binaries.iter()
-            .fold(String::new(), |acc, item| {
-                format!("{}\nRUN cd cmd/{} && go build -a -installsuffix cgo -o {}", acc, item, item)
-            });
+        let binary_commands: String = self
+            .binaries
+            .iter()
+            .map(|item| {
+                format!(
+                    "RUN go build -a -installsuffix cgo -o /build/{} cmd/{}",
+                    item, item
+                )
+            })
+            .fold(String::new(), |acc, item| acc + "\n" + &item);
+        let binary_copy_commands: String = self
+            .binaries
+            .iter()
+            .map(|item| format!("COPY --from=builder /build/{} /app/{}", item, item))
+            .fold(String::new(), |acc, item| acc + "\n" + &item);
 
-        format!(r#"
+        format!(
+            r#"
 FROM {builder_image} AS builder
 #RUN ___start_hook
 ENV GOOS=linux
@@ -96,24 +106,10 @@ RUN go test ./...
 
 FROM {runtime_image}
 WORKDIR /app
-COPY --from=builder /src/cmd/naiserator/naiserator /app/naiserator
-COPY --from=builder /src/cmd/naiserator_webhook/naiserator_webhook /app/naiserator_webhook
+{binary_copy_commands}
 CMD ["/app/naiserator"]
 "#,
         )
-
-        // FROM ___sdk_build_docker_image AS builder
-        // RUN ___start_hook
-        // ENV GOOS=linux
-        // ENV CGO_ENABLED=0
-        // WORKDIR /src
-        // COPY go.* /src/
-        // RUN go mod download
-        // COPY . /src
-        // RUN make test
-        // RUN cd cmd/naiserator && go build -a -installsuffix cgo -o naiserator
-        // RUN cd cmd/naiserator_webhook && go build -a -installsuffix cgo -o naiserator_webhook
-        // RUN ___end_hook
     }
 }
 
@@ -124,10 +120,7 @@ impl From<SDK> for DockerBuildParams {
             runtime_image: sdk.runtime_image,
             start_hook: None,
             end_hook: None,
-            binaries: vec![
-                "naiserator".into(),
-                "naiserator_webhook".into(),
-            ],
+            binaries: vec!["naiserator".into(), "naiserator_webhook".into()],
         }
     }
 }

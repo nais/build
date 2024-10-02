@@ -3,13 +3,19 @@
 == prepare ==
 main --> fs: read and validate configuration file
 note right: read from disk\n\
-load structure\n\
-build dependency graph
+load structure
+main --> docker: validate docker configuration against GAR
+note right: docker login?\n\
+docker pull <well-known>?\n\
+check file .docker/config.json?\n\
+gcloud active user is *@nav.no?\n\
+gcloud API calls work?
 main --> fs: collect build, publish and deploy parameters
 note right: detect SDK\n\
 detect SDK parameters\n\
 read secrets
 main --> sdk: detect and validate build target
+note right: build dependency graph
 
 == build/docker ==
 main --> sdk: determine image name

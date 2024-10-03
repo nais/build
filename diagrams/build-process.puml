@@ -4,6 +4,8 @@
 main --> fs: read and validate configuration file
 note right: read from disk\n\
 load structure
+main --> fs: detect dependencies
+note right: docker\ngcloud
 main --> docker: validate docker configuration against GAR
 note right: docker login?\n\
 docker pull <well-known>?\n\

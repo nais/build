@@ -5,5 +5,8 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-tempfile = "3.13.0"
+tempfile = "3"
 thiserror = "1"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde-inline-default = "0.2.1"

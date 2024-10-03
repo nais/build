@@ -6,12 +6,21 @@ use std::io::Write;
 use std::process::Stdio;
 use thiserror::Error;
 
+#[allow(dead_code)]
+mod config;
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    /// Root of the source code tree.
     #[arg(short, long, default_value = ".")]
     source_directory: String,
+
+    /// Path to the NAIS build configuration file.
+    // ... TODO: or nais.toml?
+    #[arg(short, long)]
+    config: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -31,8 +40,37 @@ enum Commands {
     Build,
 }
 
+/// Read configuration file from disk.
+///
+/// If a configuration file name is not set explicitly, this function will
+/// detect whether a config file with the default file name exists on disk.
+/// If it does, it is used implicitly. If not, we ignore any read errors.
+fn read_config(args: &Cli) -> Result<config::File, Error> {
+    const DEFAULT_CONFIG_FILE: &str = "nb.toml";
+    let config_file = match &args.config {
+        None => {
+            if std::fs::metadata(DEFAULT_CONFIG_FILE)
+                .and_then(|metadata| Ok(metadata.is_file()))
+                .unwrap_or(false) {
+                Some(DEFAULT_CONFIG_FILE.into())
+            } else {
+                None
+            }
+        }
+        Some(c) => Some(c.clone()),
+    };
+
+    Ok(if let Some(config_file) = config_file {
+        let config_string = std::fs::read_to_string(&config_file)?;
+        toml::from_str::<config::File>(&config_string)?
+    } else {
+        config::File::default()
+    })
+}
+
 fn main() -> Result<(), Error> {
     let args = Cli::parse();
+    let cfg = read_config(&args)?;
 
     match args.command {
         Commands::Check { environment } => {
@@ -129,6 +167,9 @@ enum Error {
 
     #[error("filesystem error: {0}")]
     FilesystemError(#[from] std::io::Error),
+
+    #[error("configuration file syntax error: {0}")]
+    ConfigDeserialize(#[from] toml::de::Error),
 }
 
 fn detect_go(filesystem_path: &str) -> Option<SDK> {

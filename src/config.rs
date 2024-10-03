@@ -56,8 +56,8 @@ impl Default for Sdk {
 
 #[derive(Deserialize, Debug)]
 pub struct SdkGolang {
-    build_docker_image: String,
-    runtime_docker_image: String,
+    pub build_docker_image: String,
+    pub runtime_docker_image: String,
 }
 
 impl Default for SdkGolang {
@@ -71,8 +71,8 @@ impl Default for SdkGolang {
 
 #[derive(Deserialize, Debug)]
 pub struct SdkRust {
-    build_docker_image: String,
-    runtime_docker_image: String,
+    pub build_docker_image: String,
+    pub runtime_docker_image: String,
 }
 
 impl Default for SdkRust {

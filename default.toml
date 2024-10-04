@@ -92,7 +92,8 @@ type = "gar"
 # name = "my-application"
 
 [release.gar]
-# GAR: europe-north1-docker.pkg.dev/nais-management-233d/<team>/<app>:<tag>
+# GAR:    europe-north1-docker.pkg.dev/nais-management-233d/<team>/<app>:<tag>
+# Github: ghcr.io/navikt                                          /<app>:<tag>
 registry = "europe-north1-docker.pkg.dev/nais-management-233d"
 
 [release.ghcr]

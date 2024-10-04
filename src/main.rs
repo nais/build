@@ -2,7 +2,7 @@ use crate::DetectBuildTargetError::*;
 use crate::Error::*;
 use clap::{Parser, Subcommand};
 use std::io::Write;
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
 
 #[allow(dead_code)]
@@ -61,6 +61,9 @@ enum Error {
 
     #[error("configuration file syntax error: {0}")]
     ConfigDeserialize(#[from] toml::de::Error),
+
+    #[error("docker build failed with exit code {0}")]
+    DockerBuild(ExitStatus),
 }
 
 /// Read configuration file from disk.
@@ -103,39 +106,51 @@ fn main() -> Result<(), Error> {
         }
         Commands::Dockerfile => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
-            println!("{}", sdk.dockerfile()?);
+            println!("{}\n\n", sdk.dockerfile()?);
+            println!("Docker image tag: {}", sdk.docker_image_name_tagged());
             Ok(())
         }
         Commands::Build => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
-            let mut file = tempfile::NamedTempFile::new()?;
-            file.write_all(sdk.dockerfile()?.as_bytes())?;
-
-            let output = std::process::Command::new("docker")
-                .arg("build")
-                .arg("--file")
-                .arg(file.path())
-                .arg(&args.source_directory)
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .status()?;
-
-            println!("{:?}", output);
+            sdk.build()?;
+            println!("Docker image built successfully: {}", sdk.docker_image_name_tagged());
             Ok(())
         }
     }
 }
 
 /// SDK is anything that can produce artifacts
-trait SDK {
+trait DockerBuilder {
     fn builder_docker_image(&self) -> String;
     fn runtime_docker_image(&self) -> String;
     fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError>;
     fn dockerfile(&self) -> Result<String, Error>;
-    fn docker_image_tag(&self) -> Result<String, Error>;
+    fn filesystem_path(&self) -> String;
+    fn docker_image_name_tagged(&self) -> String;
+
+    fn build(&self) -> Result<(), Error> {
+        let mut file = tempfile::NamedTempFile::new()?;
+        file.write_all(self.dockerfile()?.as_bytes())?;
+
+        std::process::Command::new("docker")
+            .arg("build")
+            .arg("--file").arg(file.path())
+            .arg("--tag").arg(self.docker_image_name_tagged())
+            .arg(&self.filesystem_path())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .map(|exit_status| {
+                if exit_status.success() {
+                    Ok(())
+                } else {
+                    Err(DockerBuild(exit_status))
+                }
+            })?
+    }
 }
 
-fn init_sdk(filesystem_path: &str, cfg: &config::File) -> Result<Box<dyn SDK>, Error> {
+fn init_sdk(filesystem_path: &str, cfg: &config::File) -> Result<Box<dyn DockerBuilder>, Error> {
     match Golang::new(filesystem_path, cfg) {
         Ok(Some(sdk)) => return Ok(Box::new(sdk)),
         Ok(None) => {}
@@ -148,6 +163,7 @@ struct Golang {
     filesystem_path: String,
     docker_builder_image: String,
     docker_runtime_image: String,
+    docker_image_name_tagged: String,
     #[allow(dead_code)]
     start_hook: Option<String>,
     #[allow(dead_code)]
@@ -162,18 +178,26 @@ impl Golang {
         if !file_stat.is_file() {
             return Ok(None);
         }
+
+        let docker_image_name_config = config::docker::image_name::Config {
+            registry: cfg.release.params().registry,
+            team: "myteam".to_string(),
+            app: "myapp".to_string(),
+            tag: "1-foobarbaz".to_string(),
+        };
+
         Ok(Some(Self {
             filesystem_path: filesystem_path.into(),
             docker_builder_image: cfg.sdk.go.build_docker_image.clone(),
             docker_runtime_image: cfg.sdk.go.runtime_docker_image.clone(),
-            // docker_image_full_name: generate_docker_image_full_name(filesystem_path, cfg.docker.docker_image, cfg.docker.docker_tag, cfg.teamname)
+            docker_image_name_tagged: cfg.release.docker_name_builder(docker_image_name_config).to_string(),
             start_hook: None,
             end_hook: None,
         }))
     }
 }
 
-impl SDK for Golang {
+impl DockerBuilder for Golang {
     fn builder_docker_image(&self) -> String {
         self.docker_builder_image.clone()
     }
@@ -262,5 +286,13 @@ WORKDIR /app
 {default_target}
 "#,
         ))
+    }
+
+    fn filesystem_path(&self) -> String {
+        self.filesystem_path.clone()
+    }
+
+    fn docker_image_name_tagged(&self) -> String {
+        self.docker_image_name_tagged.clone()
     }
 }

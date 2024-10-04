@@ -14,6 +14,7 @@ pub struct File {
     pub branch: HashMap<String, BranchRule>,
     #[serde(default = "Default::default")]
     pub sdk: Sdk,
+    pub release: Release,
 }
 
 impl Default for File {
@@ -103,11 +104,111 @@ pub struct Docker {
      */
 }
 
+#[derive(Deserialize, Debug)]
+pub struct Release {
+    #[serde(rename = "type")]
+    pub typ: ReleaseType,
+    ghcr: ReleaseParams,
+    gar: ReleaseParams,
+}
+
+impl Release {
+    pub fn params(&self) -> ReleaseParams {
+        match self.typ {
+            ReleaseType::GAR => self.gar.clone(),
+            ReleaseType::GHCR => self.ghcr.clone(),
+        }
+    }
+
+    pub fn docker_name_builder(&self, config: docker::image_name::Config) -> Box<dyn ToString> {
+        match self.typ {
+            ReleaseType::GAR => Box::new(docker::image_name::GARBuilder(config)),
+            ReleaseType::GHCR => Box::new(docker::image_name::GHCRBuilder(config)),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ReleaseParams {
+    pub registry: String,
+}
+
+#[derive(Deserialize, Debug, Eq, PartialEq)]
+pub enum ReleaseType {
+    #[serde(rename = "gar")]
+    GAR,
+    #[serde(rename = "ghcr")]
+    GHCR,
+}
+
+pub mod docker {
+    pub mod image_name {
+        use std::fmt::Display;
+
+        pub struct Config {
+            pub registry: String,
+            pub team: String,
+            pub app: String,
+            pub tag: String,
+        }
+
+        pub struct GARBuilder(pub Config);
+        pub struct GHCRBuilder(pub Config);
+
+        impl Display for GARBuilder {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let registry = &self.0.registry;
+                let team = &self.0.team;
+                let app = &self.0.app;
+                let tag = &self.0.tag;
+                write!(f, "{}", format!("{registry}/{team}/{app}:{tag}"))
+            }
+        }
+
+        impl Display for GHCRBuilder {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let registry = &self.0.registry;
+                let app = &self.0.app;
+                let tag = &self.0.tag;
+                write!(f, "{}", format!("{registry}/{app}:{tag}"))
+            }
+        }
+
+        #[cfg(test)]
+        pub mod tests {
+            use super::*;
+
+            fn configuration() -> Config {
+                Config {
+                    registry: "path/to/registry".to_string(),
+                    team: "mynamespace".to_string(),
+                    app: "myapplication".to_string(),
+                    tag: "1-foo".to_string(),
+                }
+            }
+
+            #[test]
+            pub fn gar_release() {
+                assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/mynamespace/myapplication:1-foo".to_string());
+            }
+
+            #[test]
+            pub fn ghcr_release() {
+                assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/myapplication:1-foo".to_string());
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod test {
+    use super::File;
+    use crate::config::ReleaseType::GAR;
+
     #[test]
     pub fn load_default_configuration() {
-        let cfg = super::File::default();
-        assert_eq!(cfg.description, Some("Default configuration file".into()))
+        let cfg = File::default();
+        assert_eq!(cfg.description, Some("Default configuration file".into()));
+        assert_eq!(cfg.release.typ, GAR);
     }
 }

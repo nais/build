@@ -74,7 +74,8 @@ fn read_config(args: &Cli) -> Result<config::File, Error> {
         None => {
             if std::fs::metadata(DEFAULT_CONFIG_FILE)
                 .and_then(|metadata| Ok(metadata.is_file()))
-                .unwrap_or(false) {
+                .unwrap_or(false)
+            {
                 Some(DEFAULT_CONFIG_FILE.into())
             } else {
                 None
@@ -130,14 +131,15 @@ trait SDK {
     fn builder_docker_image(&self) -> String;
     fn runtime_docker_image(&self) -> String;
     fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError>;
-    fn dockerfile(&self) -> Result<String,Error>;
+    fn dockerfile(&self) -> Result<String, Error>;
+    fn docker_image_tag(&self) -> Result<String, Error>;
 }
 
 fn init_sdk(filesystem_path: &str, cfg: &config::File) -> Result<Box<dyn SDK>, Error> {
     match Golang::new(filesystem_path, cfg) {
-        Ok(Some(sdk)) => { return Ok(Box::new(sdk)) }
+        Ok(Some(sdk)) => return Ok(Box::new(sdk)),
         Ok(None) => {}
-        Err(err) => { return Err(err) }
+        Err(err) => return Err(err),
     }
     Err(SDKNotDetected)
 }
@@ -164,6 +166,7 @@ impl Golang {
             filesystem_path: filesystem_path.into(),
             docker_builder_image: cfg.sdk.go.build_docker_image.clone(),
             docker_runtime_image: cfg.sdk.go.runtime_docker_image.clone(),
+            // docker_image_full_name: generate_docker_image_full_name(filesystem_path, cfg.docker.docker_image, cfg.docker.docker_tag, cfg.teamname)
             start_hook: None,
             end_hook: None,
         }))
@@ -180,7 +183,7 @@ impl SDK for Golang {
     }
 
     /// Return a list of binaries that can be built.
-    fn detect_build_targets( &self, ) -> Result<Vec<String>, DetectBuildTargetError> {
+    fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError> {
         std::fs::read_dir(self.filesystem_path.to_owned() + "/cmd")?
             .map(|dir_entry| {
                 Ok(dir_entry?
@@ -192,7 +195,7 @@ impl SDK for Golang {
             .collect()
     }
 
-    fn dockerfile(&self) -> Result<String,Error> {
+    fn dockerfile(&self) -> Result<String, Error> {
         let targets = self.detect_build_targets()?;
         let builder_image = &self.builder_docker_image();
         let runtime_image = &self.runtime_docker_image();

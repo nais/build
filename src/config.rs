@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
+use std::collections::HashMap;
 //use crate::oci::{PosixGroup, PosixUser};
 
 const DEFAULT_CONFIG: &str = include_str!("../default.toml");
@@ -93,7 +93,8 @@ pub struct Build {
 
 #[derive(Deserialize, Debug)]
 pub struct Docker {
-    tag: String,
+    image_name: String,
+    image_tag: String,
     /*
     //auto_generate: bool,
     //output_files: Vec<String>,
@@ -107,6 +108,6 @@ pub mod test {
     #[test]
     pub fn load_default_configuration() {
         let cfg = super::File::default();
-        assert_eq!(cfg.description, "Default configuration file")
+        assert_eq!(cfg.description, Some("Default configuration file".into()))
     }
 }

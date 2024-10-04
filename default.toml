@@ -69,7 +69,10 @@ type = "docker"
 sdk = ""   # auto-detect as default
 
 [build.docker]
-tag = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
+# GAR: europe-north1-docker.pkg.dev/nais-management-233d/a11y-statement/accessibility-reporting-tool@sha256:3587dc072472352b53021da45b8a4a6b2ec0dc67bc00c47a4b211b3fda7e5e84
+registry = ""
+image_name = "europe-north1-docker.pkg.dev/nais-management-233d/{{ team }}/{{ app }}"
+image_tag = "{{ iso_date }}.{{ iso_time }}.{{ git_short_sha }}"
 auto_generate = true
 # input_files
 output_files = ["/nais-build/*"]
@@ -86,8 +89,15 @@ group.name = "nobody"
 
 [release]
 type = "gar"
+# name = "my-application"
 
 [release.gar]
+# GAR: europe-north1-docker.pkg.dev/nais-management-233d/<team>/<app>:<tag>
+registry = "europe-north1-docker.pkg.dev/nais-management-233d"
+
+[release.ghcr]
+# Github: ghcr.io/navikt/<app>:<tag>
+registry = "ghcr.io/navikt"
 
 #
 # Deploy an application to NAIS using nais deploy.

@@ -8,7 +8,7 @@ use thiserror::Error;
 #[allow(dead_code)]
 mod config;
 
-/// Simple program to greet a person
+/// Build, test, lint, check and deploy your NAIS application.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -27,15 +27,15 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Check if the environment is ready
+    /// Validate configuration.
     Check {
         /// The environment to check
         #[arg(short, long, default_value = "development")]
         environment: String,
     },
-    /// Build the Dockerfile
+    /// Detect build parameters and print your Dockerfile.
     Dockerfile,
-    /// Build builds
+    /// Build your project into a Dockerfile.
     Build,
 }
 
@@ -113,7 +113,6 @@ fn main() -> Result<(), Error> {
         Commands::Build => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
             sdk.build()?;
-            println!("Docker image built successfully: {}", sdk.docker_image_name_tagged());
             Ok(())
         }
     }

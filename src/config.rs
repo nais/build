@@ -136,8 +136,11 @@ pub struct ReleaseParams {
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub enum ReleaseType {
     #[serde(rename = "gar")]
+    /// Google Artifact Registry
     GAR,
+
     #[serde(rename = "ghcr")]
+    /// GitHub Container Registry
     GHCR,
 }
 

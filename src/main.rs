@@ -1,3 +1,5 @@
+/// NAIS Build
+
 use crate::DetectBuildTargetError::*;
 use crate::Error::*;
 use clap::{Parser, Subcommand};
@@ -8,7 +10,7 @@ use thiserror::Error;
 #[allow(dead_code)]
 mod config;
 
-/// Build, test, lint, check and deploy your NAIS application.
+/// NAISly build, test, lint, check and deploy your application.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -27,12 +29,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Validate configuration.
-    Check {
-        /// The environment to check
-        #[arg(short, long, default_value = "development")]
-        environment: String,
-    },
     /// Detect build parameters and print your Dockerfile.
     Dockerfile,
     /// Build your project into a Dockerfile.
@@ -100,10 +96,6 @@ fn main() -> Result<(), Error> {
     let cfg = read_config(&args)?;
 
     match args.command {
-        Commands::Check { environment } => {
-            println!("hello {}", environment);
-            Ok(())
-        }
         Commands::Dockerfile => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
             println!("{}\n\n", sdk.dockerfile()?);

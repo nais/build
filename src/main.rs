@@ -1,6 +1,5 @@
 /// NAIS Build
 
-use crate::DetectBuildTargetError::*;
 use crate::Error::*;
 use clap::{Parser, Subcommand};
 use std::io::Write;
@@ -36,7 +35,7 @@ enum Commands {
 }
 
 #[derive(Error, Debug)]
-enum DetectBuildTargetError {
+pub enum DetectBuildTargetError {
     #[error("filesystem error: {0}")]
     FilesystemError(#[from] std::io::Error),
 
@@ -45,7 +44,7 @@ enum DetectBuildTargetError {
 }
 
 #[derive(Error, Debug)]
-enum Error {
+pub enum Error {
     #[error("no compatible SDKs for this source directory")]
     SDKNotDetected,
 
@@ -99,146 +98,163 @@ fn main() -> Result<(), Error> {
         Commands::Dockerfile => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
             println!("{}\n\n", sdk.dockerfile()?);
-            println!("Docker image tag: {}", sdk.docker_image_name_tagged());
+            //println!("Docker image tag: {}", sdk.docker_image_name_tagged());
             Ok(())
         }
         Commands::Build => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
-            sdk.build()?;
+            let docker_image_name_config = config::docker::image_name::Config {
+                registry: cfg.release.params().registry,
+                team: "myteam".to_string(),
+                app: "myapp".to_string(),
+                tag: "1-foobarbaz".to_string(),
+            };
+            let image_name_builder = cfg.release.docker_name_builder(docker_image_name_config);
+            // Self {
+            //                 filesystem_path: filesystem_path.into(),
+            //                 docker_image_name_tagged: ,
+            //                 start_hook: None,
+            //                 end_hook: None,
+            //             }
+
+            build(sdk, &image_name_builder.to_string())?;
             Ok(())
         }
     }
 }
 
 /// SDK is anything that can produce artifacts
-trait DockerBuilder {
+trait DockerFileBuilder {
     fn builder_docker_image(&self) -> String;
     fn runtime_docker_image(&self) -> String;
     fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError>;
     fn dockerfile(&self) -> Result<String, Error>;
     fn filesystem_path(&self) -> String;
-    fn docker_image_name_tagged(&self) -> String;
-
-    fn build(&self) -> Result<(), Error> {
-        let mut file = tempfile::NamedTempFile::new()?;
-        file.write_all(self.dockerfile()?.as_bytes())?;
-
-        std::process::Command::new("docker")
-            .arg("build")
-            .arg("--file").arg(file.path())
-            .arg("--tag").arg(self.docker_image_name_tagged())
-            .arg(&self.filesystem_path())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status()
-            .map(|exit_status| {
-                if exit_status.success() {
-                    Ok(())
-                } else {
-                    Err(DockerBuild(exit_status))
-                }
-            })?
-    }
+    //fn docker_image_name_tagged(&self) -> String;
 }
 
-fn init_sdk(filesystem_path: &str, cfg: &config::file::File) -> Result<Box<dyn DockerBuilder>, Error> {
-    match Golang::new(filesystem_path, cfg) {
-        Ok(Some(sdk)) => return Ok(Box::new(sdk)),
+
+fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(), Error> {
+    let mut file = tempfile::NamedTempFile::new()?;
+    file.write_all(docker_file_builder.dockerfile()?.as_bytes())?;
+
+    std::process::Command::new("docker")
+        .arg("build")
+        .arg("--file").arg(file.path())
+        .arg("--tag").arg(tag)
+        .arg(docker_file_builder.filesystem_path())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .map(|exit_status| {
+            if exit_status.success() {
+                Ok(())
+            } else {
+                Err(DockerBuild(exit_status))
+            }
+        })?
+}
+fn init_sdk(filesystem_path: &str, cfg: &config::file::File) -> Result<Box<dyn DockerFileBuilder>, Error> {
+    match golang::new(golang::Config {
+        filesystem_path: filesystem_path.to_string(),
+        docker_builder_image: cfg.sdk.go.build_docker_image.clone(),
+        docker_runtime_image: cfg.sdk.go.runtime_docker_image.clone(),
+        start_hook: None,
+        end_hook: None,
+    }) {
+        Ok(Some(sdk)) => {
+            return Ok(Box::new(sdk));
+        }
         Ok(None) => {}
         Err(err) => return Err(err),
     }
+
+    // try next sdk
+
     Err(SDKNotDetected)
 }
 
-struct Golang {
-    filesystem_path: String,
-    docker_builder_image: String,
-    docker_runtime_image: String,
-    docker_image_name_tagged: String,
-    #[allow(dead_code)]
-    start_hook: Option<String>,
-    #[allow(dead_code)]
-    end_hook: Option<String>,
-}
+/// Build Go projects.
+pub mod golang {
+    use crate::{DetectBuildTargetError, DockerFileBuilder, Error};
+    use crate::DetectBuildTargetError::EmptyFilename;
 
-impl Golang {
-    fn new(filesystem_path: &str, cfg: &config::file::File) -> Result<Option<Self>, Error> {
-        let Ok(file_stat) = std::fs::metadata(filesystem_path.to_owned() + "/go.mod") else {
+    pub struct Golang(Config);
+
+    pub struct Config {
+        pub filesystem_path: String,
+        pub docker_builder_image: String,
+        pub docker_runtime_image: String,
+
+        #[allow(dead_code)]
+        pub start_hook: Option<String>,
+        #[allow(dead_code)]
+        pub end_hook: Option<String>,
+    }
+
+    pub fn new(cfg: Config) -> Result<Option<Golang>, Error> {
+        let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/go.mod") else {
             return Ok(None);
         };
         if !file_stat.is_file() {
             return Ok(None);
         }
 
-        let docker_image_name_config = config::file::docker::image_name::Config {
-            registry: cfg.release.params().registry,
-            team: "myteam".to_string(),
-            app: "myapp".to_string(),
-            tag: "1-foobarbaz".to_string(),
-        };
 
-        Ok(Some(Self {
-            filesystem_path: filesystem_path.into(),
-            docker_builder_image: cfg.sdk.go.build_docker_image.clone(),
-            docker_runtime_image: cfg.sdk.go.runtime_docker_image.clone(),
-            docker_image_name_tagged: cfg.release.docker_name_builder(docker_image_name_config).to_string(),
-            start_hook: None,
-            end_hook: None,
-        }))
-    }
-}
-
-impl DockerBuilder for Golang {
-    fn builder_docker_image(&self) -> String {
-        self.docker_builder_image.clone()
+        Ok(Some(Golang(cfg)))
     }
 
-    fn runtime_docker_image(&self) -> String {
-        self.docker_runtime_image.clone()
-    }
+    impl DockerFileBuilder for Golang {
+        fn builder_docker_image(&self) -> String {
+            self.0.docker_builder_image.clone()
+        }
 
-    /// Return a list of binaries that can be built.
-    fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError> {
-        std::fs::read_dir(self.filesystem_path.to_owned() + "/cmd")?
-            .map(|dir_entry| {
-                Ok(dir_entry?
-                    .file_name()
-                    .to_str()
-                    .ok_or(EmptyFilename)?
-                    .to_string())
-            })
-            .collect()
-    }
+        fn runtime_docker_image(&self) -> String {
+            self.0.docker_runtime_image.clone()
+        }
 
-    fn dockerfile(&self) -> Result<String, Error> {
-        let targets = self.detect_build_targets()?;
-        let builder_image = &self.builder_docker_image();
-        let runtime_image = &self.runtime_docker_image();
-        let binary_build_commands: String = targets
-            .iter()
-            .map(|item| {
-                format!(
-                    "RUN go build -a -installsuffix cgo -o /build/{} ./cmd/{}",
-                    item, item
-                )
-            })
-            .fold(String::new(), |acc, item| acc + "\n" + &item)
-            .trim()
-            .to_string();
-        let binary_copy_commands: String = targets
-            .iter()
-            .map(|item| format!("COPY --from=builder /build/{} /app/{}", item, item))
-            .fold(String::new(), |acc, item| acc + "\n" + &item)
-            .trim()
-            .to_string();
-        let default_target = if targets.len() == 1 {
-            format!(r#"CMD ["/app/{}"]"#, targets[0])
-        } else {
-            "# Default CMD omitted due to multiple targets specified".to_string()
-        };
+        /// Return a list of binaries that can be built.
+        fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError> {
+            std::fs::read_dir(self.0.filesystem_path.to_owned() + "/cmd")?
+                .map(|dir_entry| {
+                    Ok(dir_entry?
+                        .file_name()
+                        .to_str()
+                        .ok_or(EmptyFilename)?
+                        .to_string())
+                })
+                .collect()
+        }
 
-        Ok(format!(
-            r#"
+        fn dockerfile(&self) -> Result<String, Error> {
+            let targets = self.detect_build_targets()?;
+            let builder_image = &self.builder_docker_image();
+            let runtime_image = &self.runtime_docker_image();
+            let binary_build_commands: String = targets
+                .iter()
+                .map(|item| {
+                    format!(
+                        "RUN go build -a -installsuffix cgo -o /build/{} ./cmd/{}",
+                        item, item
+                    )
+                })
+                .fold(String::new(), |acc, item| acc + "\n" + &item)
+                .trim()
+                .to_string();
+            let binary_copy_commands: String = targets
+                .iter()
+                .map(|item| format!("COPY --from=builder /build/{} /app/{}", item, item))
+                .fold(String::new(), |acc, item| acc + "\n" + &item)
+                .trim()
+                .to_string();
+            let default_target = if targets.len() == 1 {
+                format!(r#"CMD ["/app/{}"]"#, targets[0])
+            } else {
+                "# Default CMD omitted due to multiple targets specified".to_string()
+            };
+
+            Ok(format!(
+                r#"
 # Dockerfile generated by NAIS build (version) at (timestamp)
 
 #
@@ -276,14 +292,15 @@ WORKDIR /app
 {binary_copy_commands}
 {default_target}
 "#,
-        ))
-    }
+            ))
+        }
 
-    fn filesystem_path(&self) -> String {
-        self.filesystem_path.clone()
-    }
+        fn filesystem_path(&self) -> String {
+            self.0.filesystem_path.clone()
+        }
 
-    fn docker_image_name_tagged(&self) -> String {
-        self.docker_image_name_tagged.clone()
+        // fn docker_image_name_tagged(&self) -> String {
+        //     self.0.docker_image_name_tagged.clone()
+        // }
     }
 }

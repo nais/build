@@ -125,10 +125,10 @@ pub mod file {
             }
         }
 
-        pub fn docker_name_builder(&self, config: docker::image_name::Config) -> Box<dyn ToString> {
+        pub fn docker_name_builder(&self, config: super::docker::image_name::Config) -> Box<dyn ToString> {
             match self.typ {
-                ReleaseType::GAR => Box::new(docker::image_name::GARBuilder(config)),
-                ReleaseType::GHCR => Box::new(docker::image_name::GHCRBuilder(config)),
+                ReleaseType::GAR => Box::new(super::docker::image_name::GARBuilder(config)),
+                ReleaseType::GHCR => Box::new(super::docker::image_name::GHCRBuilder(config)),
             }
         }
     }
@@ -149,65 +149,6 @@ pub mod file {
         GHCR,
     }
 
-    pub mod docker {
-        pub mod image_name {
-            use std::fmt::Display;
-
-            pub struct Config {
-                pub registry: String,
-                pub team: String,
-                pub app: String,
-                pub tag: String,
-            }
-
-            pub struct GARBuilder(pub Config);
-            pub struct GHCRBuilder(pub Config);
-
-            impl Display for GARBuilder {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    let registry = &self.0.registry;
-                    let team = &self.0.team;
-                    let app = &self.0.app;
-                    let tag = &self.0.tag;
-                    write!(f, "{}", format!("{registry}/{team}/{app}:{tag}"))
-                }
-            }
-
-            impl Display for GHCRBuilder {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    let registry = &self.0.registry;
-                    let app = &self.0.app;
-                    let tag = &self.0.tag;
-                    write!(f, "{}", format!("{registry}/{app}:{tag}"))
-                }
-            }
-
-            #[cfg(test)]
-            pub mod tests {
-                use super::*;
-
-                fn configuration() -> Config {
-                    Config {
-                        registry: "path/to/registry".to_string(),
-                        team: "mynamespace".to_string(),
-                        app: "myapplication".to_string(),
-                        tag: "1-foo".to_string(),
-                    }
-                }
-
-                #[test]
-                pub fn gar_release() {
-                    assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/mynamespace/myapplication:1-foo".to_string());
-                }
-
-                #[test]
-                pub fn ghcr_release() {
-                    assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/myapplication:1-foo".to_string());
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     pub mod test {
         use super::File;
@@ -218,6 +159,65 @@ pub mod file {
             let cfg = File::default();
             assert_eq!(cfg.description, Some("Default configuration file".into()));
             assert_eq!(cfg.release.typ, GAR);
+        }
+    }
+}
+
+pub mod docker {
+    pub mod image_name {
+        use std::fmt::Display;
+
+        pub struct Config {
+            pub registry: String,
+            pub team: String,
+            pub app: String,
+            pub tag: String,
+        }
+
+        pub struct GARBuilder(pub Config);
+        pub struct GHCRBuilder(pub Config);
+
+        impl Display for GARBuilder {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let registry = &self.0.registry;
+                let team = &self.0.team;
+                let app = &self.0.app;
+                let tag = &self.0.tag;
+                write!(f, "{}", format!("{registry}/{team}/{app}:{tag}"))
+            }
+        }
+
+        impl Display for GHCRBuilder {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let registry = &self.0.registry;
+                let app = &self.0.app;
+                let tag = &self.0.tag;
+                write!(f, "{}", format!("{registry}/{app}:{tag}"))
+            }
+        }
+
+        #[cfg(test)]
+        pub mod tests {
+            use super::*;
+
+            fn configuration() -> Config {
+                Config {
+                    registry: "path/to/registry".to_string(),
+                    team: "mynamespace".to_string(),
+                    app: "myapplication".to_string(),
+                    tag: "1-foo".to_string(),
+                }
+            }
+
+            #[test]
+            pub fn gar_release() {
+                assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/mynamespace/myapplication:1-foo".to_string());
+            }
+
+            #[test]
+            pub fn ghcr_release() {
+                assert_eq!(GARBuilder(configuration()).to_string(), "path/to/registry/myapplication:1-foo".to_string());
+            }
         }
     }
 }

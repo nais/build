@@ -67,7 +67,7 @@ enum Error {
 /// If a configuration file name is not set explicitly, this function will
 /// detect whether a config file with the default file name exists on disk.
 /// If it does, it is used implicitly. If not, we ignore any read errors.
-fn read_config(args: &Cli) -> Result<config::File, Error> {
+fn read_config(args: &Cli) -> Result<config::file::File, Error> {
     const DEFAULT_CONFIG_FILE: &str = "nb.toml";
     let config_file = match &args.config {
         None => {
@@ -85,9 +85,9 @@ fn read_config(args: &Cli) -> Result<config::File, Error> {
 
     Ok(if let Some(config_file) = config_file {
         let config_string = std::fs::read_to_string(&config_file)?;
-        toml::from_str::<config::File>(&config_string)?
+        toml::from_str::<config::file::File>(&config_string)?
     } else {
-        config::File::default()
+        config::file::File::default()
     })
 }
 
@@ -141,7 +141,7 @@ trait DockerBuilder {
     }
 }
 
-fn init_sdk(filesystem_path: &str, cfg: &config::File) -> Result<Box<dyn DockerBuilder>, Error> {
+fn init_sdk(filesystem_path: &str, cfg: &config::file::File) -> Result<Box<dyn DockerBuilder>, Error> {
     match Golang::new(filesystem_path, cfg) {
         Ok(Some(sdk)) => return Ok(Box::new(sdk)),
         Ok(None) => {}
@@ -162,7 +162,7 @@ struct Golang {
 }
 
 impl Golang {
-    fn new(filesystem_path: &str, cfg: &config::File) -> Result<Option<Self>, Error> {
+    fn new(filesystem_path: &str, cfg: &config::file::File) -> Result<Option<Self>, Error> {
         let Ok(file_stat) = std::fs::metadata(filesystem_path.to_owned() + "/go.mod") else {
             return Ok(None);
         };
@@ -170,7 +170,7 @@ impl Golang {
             return Ok(None);
         }
 
-        let docker_image_name_config = config::docker::image_name::Config {
+        let docker_image_name_config = config::file::docker::image_name::Config {
             registry: cfg.release.params().registry,
             team: "myteam".to_string(),
             app: "myapp".to_string(),

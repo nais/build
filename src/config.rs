@@ -118,7 +118,7 @@ pub mod file {
     }
 
     impl Release {
-        pub fn params(&self) -> ReleaseParams {
+        pub fn value(&self) -> ReleaseParams {
             match self.typ {
                 ReleaseType::GAR => self.gar.clone(),
                 ReleaseType::GHCR => self.ghcr.clone(),

@@ -10,3 +10,4 @@ thiserror = "1"
 toml = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde-inline-default = "0.2.1"
+chrono = "0.4.38"

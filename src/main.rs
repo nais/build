@@ -99,12 +99,12 @@ fn main() -> Result<(), Error> {
         Err(e) => return Err(DetectNaisYaml(e)),
     };
 
-    let nais_yaml_data = nais_yaml_path
-        .map(|filename| std::fs::read_to_string(&filename))
-        .unwrap()
+   let nais_yaml_data = if let Some(nais_yaml_path) = nais_yaml_path {
+        std::fs::read_to_string(&nais_yaml_path)
         .map(|yaml_string| Ok(nais_yaml::NaisYaml::parse(&yaml_string)?))
         .map(|e: Result<nais_yaml::NaisYaml, Error>| e.unwrap())
-        .expect("FIXME: team and app needs to be inferred from nais.yaml");
+        .expect("FIXME: team and app needs to be inferred from nais.yaml")
+    };
 
     let docker_image_name = cfg
         .release

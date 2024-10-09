@@ -3,7 +3,6 @@
 mod pipeline;
 mod sdk;
 mod oci;
-mod build;
 mod config;
 
 use std::fmt::{Display, Formatter};

@@ -49,6 +49,7 @@ pub mod file {
     pub struct Sdk {
         pub go: SdkGolang,
         pub rust: SdkRust,
+        pub kotlin: SdkKotlin,
     }
 
     impl Default for Sdk {
@@ -56,6 +57,7 @@ pub mod file {
             Self {
                 go: Default::default(),
                 rust: Default::default(),
+                kotlin: Default::default(),
             }
         }
     }
@@ -86,6 +88,21 @@ pub mod file {
             Self {
                 build_docker_image: "library/rust:1-alpine".to_string(),
                 runtime_docker_image: "gcr.io/distroless/static-debian12:nonroot".to_string(),
+            }
+        }
+    }
+
+    #[derive(Deserialize, Debug)]
+    pub struct SdkKotlin {
+        pub build_docker_image: String,
+        pub runtime_docker_image: String,
+    }
+
+    impl Default for SdkKotlin {
+        fn default() -> Self {
+            Self {
+                build_docker_image: "openjdk:21-jdk-slim".to_string(),
+                runtime_docker_image: "openjdk:21-jdk-slim".to_string(),
             }
         }
     }

@@ -56,7 +56,6 @@ pub enum Error {
     #[error("detect nais.yaml: {0}")]
     DetectNaisYaml(#[from] nais_yaml::Error),
 
-
     #[error("build error: {0}")]
     SDKError(#[from] sdk::Error),
 }
@@ -179,7 +178,19 @@ fn init_sdk(
         Ok(None) => {}
         Err(err) => return Err(Error::from(err)),
     }
-
+    match sdk::kotlin::new(sdk::kotlin::Config {
+        filesystem_path: filesystem_path.to_string(),
+        docker_builder_image: cfg.sdk.kotlin.build_docker_image.clone(),
+        docker_runtime_image: cfg.sdk.kotlin.runtime_docker_image.clone(),
+        start_hook: None,
+        end_hook: None,
+    }) {
+        Ok(Some(sdk)) => {
+            return Ok(Box::new(sdk));
+        }
+        Ok(None) => {}
+        Err(err) => return Err(Error::from(err)),
+    }
     // try next sdk
 
     Err(SDKNotDetected)

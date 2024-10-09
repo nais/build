@@ -15,12 +15,10 @@ pub enum Error {
 }
 
 fn walk_dir(filesystem_path: &str) -> Result<Vec<DirEntry>, std::io::Error> {
-    Ok(
-        std::fs::read_dir(filesystem_path)?
-            .filter(|e| e.is_ok())
-            .map(|e| e.unwrap())
-            .collect()
-    )
+    Ok(std::fs::read_dir(filesystem_path)?
+        .filter(|e| e.is_ok())
+        .map(|e| e.unwrap())
+        .collect())
 }
 
 // regex
@@ -50,10 +48,12 @@ pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
         "prod-gcp.yml",
     ];
 
-    [root_dir_files, nais_files].iter()
+    [root_dir_files, nais_files]
+        .iter()
         .flatten()
         .filter(|&e| candidates.contains(&e.file_name().to_str().unwrap()))
-        .next().ok_or(NaisYamlNotFound)
+        .next()
+        .ok_or(NaisYamlNotFound)
         .map(|e| e.path().to_str().unwrap().to_string())
 }
 
@@ -63,14 +63,12 @@ pub struct NaisYaml {
 }
 
 impl NaisYaml {
-    pub fn parse(filesystem_path: &str) -> Result<Self, Error> {
-        let parsed = serde_yaml::from_str::<yaml::KubernetesResource>(filesystem_path)?;
-        Ok(
-            Self {
-                team: parsed.metadata.namespace,
-                app: parsed.metadata.name,
-            }
-        )
+    pub fn parse(yaml_string: &str) -> Result<Self, Error> {
+        let parsed = serde_yaml::from_str::<yaml::KubernetesResource>(yaml_string)?;
+        Ok(Self {
+            team: parsed.metadata.namespace,
+            app: parsed.metadata.name,
+        })
     }
 }
 

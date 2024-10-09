@@ -1,5 +1,4 @@
 /// NAIS Build
-
 use crate::Error::*;
 use clap::{Parser, Subcommand};
 use std::io::Write;
@@ -39,6 +38,9 @@ enum Commands {
 pub enum DetectBuildTargetError {
     #[error("filesystem error: {0}")]
     FilesystemError(#[from] std::io::Error),
+
+    #[error("can't find {1}: {0} ")]
+    FileError(std::io::Error, String),
 
     #[error("target name is empty")]
     EmptyFilename,
@@ -104,16 +106,18 @@ fn main() -> Result<(), Error> {
     let nais_yaml_path = match nais_yaml::detect_nais_yaml(&args.source_directory) {
         Ok(value) => Some(value),
         Err(nais_yaml::Error::NaisYamlNotFound) => None,
-        Err(e) => { return Err(DetectNaisYaml(e)) }
+        Err(e) => return Err(DetectNaisYaml(e)),
     };
 
     let nais_yaml_data = nais_yaml_path
-        .map(|filename| Ok(nais_yaml::NaisYaml::parse(&filename)?))
+        .map(|filename| std::fs::read_to_string(&filename))
+        .unwrap()
+        .map(|yaml_string| Ok(nais_yaml::NaisYaml::parse(&yaml_string)?))
         .map(|e: Result<nais_yaml::NaisYaml, Error>| e.unwrap())
-        .expect("FIXME: team and app needs to be inferred from nais.yaml")
-        ;
+        .expect("FIXME: team and app needs to be inferred from nais.yaml");
 
-    let docker_image_name = cfg.release
+    let docker_image_name = cfg
+        .release
         .docker_name_builder(config::docker::name::Config {
             registry: cfg.release.value().registry,
             tag: config::docker::tag::generate(&args.source_directory)?,
@@ -154,15 +158,16 @@ trait DockerFileBuilder {
     //fn docker_image_name_tagged(&self) -> String;
 }
 
-
 fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(), Error> {
     let mut file = tempfile::NamedTempFile::new()?;
     file.write_all(docker_file_builder.dockerfile()?.as_bytes())?;
 
     std::process::Command::new("docker")
         .arg("build")
-        .arg("--file").arg(file.path())
-        .arg("--tag").arg(tag)
+        .arg("--file")
+        .arg(file.path())
+        .arg("--tag")
+        .arg(tag)
         .arg(docker_file_builder.filesystem_path())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -175,7 +180,10 @@ fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(
             }
         })?
 }
-fn init_sdk(filesystem_path: &str, cfg: &config::file::File) -> Result<Box<dyn DockerFileBuilder>, Error> {
+fn init_sdk(
+    filesystem_path: &str,
+    cfg: &config::file::File,
+) -> Result<Box<dyn DockerFileBuilder>, Error> {
     match golang::new(golang::Config {
         filesystem_path: filesystem_path.to_string(),
         docker_builder_image: cfg.sdk.go.build_docker_image.clone(),
@@ -197,8 +205,8 @@ fn init_sdk(filesystem_path: &str, cfg: &config::file::File) -> Result<Box<dyn D
 
 /// Build Go projects.
 pub mod golang {
-    use crate::{DetectBuildTargetError, DockerFileBuilder, Error};
     use crate::DetectBuildTargetError::EmptyFilename;
+    use crate::{DetectBuildTargetError, DockerFileBuilder, Error};
 
     pub struct Golang(Config);
 
@@ -221,7 +229,6 @@ pub mod golang {
             return Ok(None);
         }
 
-
         Ok(Some(Golang(cfg)))
     }
 
@@ -236,7 +243,9 @@ pub mod golang {
 
         /// Return a list of binaries that can be built.
         fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError> {
-            std::fs::read_dir(self.0.filesystem_path.to_owned() + "/cmd")?
+            let targets_path = format!("{}/cmd", self.0.filesystem_path.to_owned());
+            std::fs::read_dir(&targets_path)
+                .map_err(|e| DetectBuildTargetError::FileError(e, targets_path.clone()))?
                 .map(|dir_entry| {
                     Ok(dir_entry?
                         .file_name()

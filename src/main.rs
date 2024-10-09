@@ -8,6 +8,7 @@ use thiserror::Error;
 
 #[allow(dead_code)]
 mod config;
+mod nais_yaml;
 
 /// NAISly build, test, lint, check and deploy your application.
 #[derive(Parser, Debug)]
@@ -62,6 +63,9 @@ pub enum Error {
 
     #[error("docker build failed with exit code {0}")]
     DockerBuild(ExitStatus),
+
+    #[error("detect nais.yaml: {0}")]
+    DetectNaisYaml(#[from] nais_yaml::Error),
 }
 
 /// Read configuration file from disk.
@@ -97,13 +101,24 @@ fn main() -> Result<(), Error> {
     let args = Cli::parse();
     let cfg = read_config(&args)?;
 
+    let nais_yaml_path = match nais_yaml::detect_nais_yaml(&args.source_directory) {
+        Ok(value) => Some(value),
+        Err(nais_yaml::Error::NaisYamlNotFound) => None,
+        Err(e) => { return Err(DetectNaisYaml(e)) }
+    };
+
+    let nais_yaml_data = nais_yaml_path
+        .map(|filename| Ok(nais_yaml::NaisYaml::parse(&filename)?))
+        .map(|e: Result<nais_yaml::NaisYaml, Error>| e.unwrap())
+        .expect("FIXME: team and app needs to be inferred from nais.yaml")
+        ;
+
     let docker_image_name = cfg.release
         .docker_name_builder(config::docker::name::Config {
             registry: cfg.release.value().registry,
             tag: config::docker::tag::generate(&args.source_directory)?,
-            // from nais.yml?
-            team: "myteam".to_string(),
-            app: "myapp".to_string(),
+            team: nais_yaml_data.team,
+            app: nais_yaml_data.app,
         })
         .to_string();
 

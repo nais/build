@@ -243,7 +243,7 @@ pub mod docker {
         ///
         /// If working tree is dirty, tag will be suffixed with `-dirty`.
         ///
-        /// Example output: `20241008.152558.abcdef`
+        /// Example output: `20241008.152558.abcdef` or `20241008.152558.abcdef-dirty`
         pub fn generate(filesystem_path: &str) -> Result<String, Error> {
             let now = chrono::Local::now();
             let datetime = now.format("%Y%m%d.%H%M%S").to_string();

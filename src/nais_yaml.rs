@@ -28,7 +28,7 @@ fn walk_dir(filesystem_path: &str) -> Result<Vec<DirEntry>, std::io::Error> {
 /// Returns the path of the first and best detected nais.yaml
 pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
     let root_dir_files = walk_dir(filesystem_path)?;
-    let nais_files = walk_dir(&format!("{}/.nais", filesystem_path))?;
+    let nais_files = walk_dir(&format!("{}/.nais", filesystem_path)).unwrap_or_default();
     let candidates = vec![
         ".nais.yaml",
         ".nais.yml",

@@ -1,4 +1,5 @@
 use std::fs::DirEntry;
+use log::{debug};
 use thiserror::Error;
 use Error::*;
 
@@ -54,11 +55,19 @@ pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
         "prod-gcp.yml",
     ];
 
+    debug!("{} files found in project root", root_dir_files.len());
+    debug!("{} files found in .nais directory", nais_files.len());
+
     [root_dir_files, nais_files]
         .iter()
         .flatten()
-        .filter(|&e| candidates.contains(&e.file_name().to_str().unwrap()))
-        .next()
+        .filter(|e| candidates.contains(&e.file_name().to_str().unwrap()))
+        .inspect(|nais_yaml_path| {
+            let path = nais_yaml_path.path().to_str().unwrap_or_default().to_string();
+            debug!("Possible nais.yaml candidate: {path}")
+        })
+        .collect::<Vec<_>>()
+        .iter().next() // Needed in order for inspect() to gather all values
         .ok_or(NaisYamlNotFound)
         .map(|e| e.path().to_str().unwrap().to_string())
 }

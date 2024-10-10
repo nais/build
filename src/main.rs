@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::io::Write;
 use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
+use log::{info};
 use sdk::DockerFileBuilder;
 
 #[allow(dead_code)]
@@ -93,8 +94,16 @@ fn main() -> Result<(), Error> {
     let args = Cli::parse();
     let cfg = read_config(&args)?;
 
+    env_logger::init();
+
+    info!("NAIS build 1.0.0");
+
     let nais_yaml_path = nais_yaml::detect_nais_yaml(&args.source_directory)?;
+    info!("nais.yaml detected at {nais_yaml_path}");
+
     let nais_yaml_data = nais_yaml::NaisYaml::parse_file(&nais_yaml_path)?;
+    info!("Application name detected: {}", &nais_yaml_data.app);
+    info!("Team detected: {}", &nais_yaml_data.team);
 
     let docker_image_name = cfg
         .release
@@ -109,8 +118,8 @@ fn main() -> Result<(), Error> {
     match args.command {
         Commands::Dockerfile => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
-            println!("{}\n\n", sdk.dockerfile()?);
-            eprintln!("Will be built as: {}", docker_image_name);
+            println!("{}\n", sdk.dockerfile()?);
+            info!("Docker image tag: {}", docker_image_name);
             Ok(())
         }
         Commands::Build => {

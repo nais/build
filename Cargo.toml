@@ -12,3 +12,5 @@ serde = { version = "1", features = ["derive"] }
 serde-inline-default = "0.2.1"
 chrono = "0.4.38"
 serde_yaml = "0.9.34"
+env_logger = "0.11.5"
+log = "0.4.22"

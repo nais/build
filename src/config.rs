@@ -145,6 +145,7 @@ pub mod file {
         pub go: SdkGolang,
         pub rust: SdkRust,
         pub gradle: SdkGradle,
+        pub maven: SdkMaven,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -164,6 +165,12 @@ pub mod file {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
         pub settings_file: Option<String>,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct SdkMaven {
+        pub build_docker_image: String,
+        pub runtime_docker_image: String,
     }
 
     #[derive(Serialize, Deserialize, Debug)]

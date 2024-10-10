@@ -54,6 +54,8 @@ runtime_docker_image = "eclipse-temurin:21"
 
 # Maven is currently at 3.9.8
 [sdk.maven]
+build_docker_image = "maven:3-eclipse-temurin-21"
+runtime_docker_image = "eclipse-temurin:21"
 version = "3"
 
 [build]

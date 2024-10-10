@@ -46,6 +46,7 @@ pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
         "dev-gcp.yaml",
         "dev-gcp.yml",
         "dev.yml",
+        "dev.yaml",
         "nais.yaml",
         "nais.yml",
         "naiserator.yaml",
@@ -55,6 +56,7 @@ pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
         "prod-gcp.yaml",
         "prod-gcp.yml",
         "prod.yml",
+        "prod.yaml",
     ];
 
     debug!("{} files found in project root", root_dir_files.len());

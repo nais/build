@@ -124,13 +124,6 @@ fn main() -> Result<(), Error> {
         }
         Commands::Build => {
             let sdk = init_sdk(&args.source_directory, &cfg)?;
-            // Self {
-            //                 filesystem_path: filesystem_path.into(),
-            //                 docker_image_name_tagged: ,
-            //                 start_hook: None,
-            //                 end_hook: None,
-            //             }
-
             build(sdk, &docker_image_name)?;
             Ok(())
         }

@@ -57,8 +57,8 @@ runtime_docker_image = "eclipse-temurin:22-alpine"
 
 [sdk.kotlin]
 #build_system = "kt"  # or gradle, ...
-build_docker_image = "eclipse-temurin:22-alpine"
-runtime_docker_image = "eclipse-temurin:22-alpine"
+build_docker_image = "eclipse-temurin:21"
+runtime_docker_image = "eclipse-temurin:21"
 
 # Maven is currently at 3.9.8
 [sdk.maven]

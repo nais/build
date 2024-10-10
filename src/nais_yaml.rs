@@ -30,8 +30,8 @@ fn walk_dir(filesystem_path: &str) -> Result<Vec<DirEntry>, std::io::Error> {
 
 // regex
 // \.?nais(erator)\.ya?ml
-// ^\.nais/.+\.yaml
-// ^\.nais/(dev|prod)-(fss|gcp)+\.yaml
+// ^\.nais/.+\.ya?ml
+// ^\.nais/(dev|prod)(-(fss|gcp))?\.ya?ml
 /// Returns the path of the first and best detected nais.yaml
 pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
     let root_dir_files = walk_dir(filesystem_path)?;

@@ -50,8 +50,7 @@ pub mod toml_merge {
             let value: toml::value::Table = toml::from_str(toml_data)?;
             merge(&mut merged, &toml::Value::Table(value));
         }
-        //Ok(merged.to_string().trim_start_matches("{").trim_end_matches("}").to_string())
-        Ok(merged.to_string())
+        Ok(toml::to_string_pretty(&merged).unwrap())
     }
 }
 
@@ -63,8 +62,6 @@ pub mod file {
     use std::collections::HashMap;
 
     /// Built-in default configuration.
-    ///
-    /// TODO: merge this file with user-supplied file?
     pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");
 
     /// A nb.toml file.

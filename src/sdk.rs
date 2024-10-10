@@ -210,7 +210,7 @@ pub mod kotlin {
                 .fold(String::new(), |acc, item| acc + "\n" + &item)
                 .trim()
                 .to_string();
-            let binary_copy_commands: String = "COPY --from=builder build/libs/app-all.jar /app/app.jar".to_string();
+            let binary_copy_commands: String = "COPY --from=builder /src/build/libs/app-all.jar /app/app.jar".to_string();
 
             Ok(format!(
                 r#"

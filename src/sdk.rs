@@ -29,6 +29,7 @@ pub trait DockerFileBuilder {
 
 /// Build Go projects.
 pub mod golang {
+    use log::debug;
     use super::DetectBuildTargetError;
     use super::DockerFileBuilder;
     use super::Error;
@@ -50,6 +51,7 @@ pub mod golang {
         let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/go.mod") else {
             return Ok(None);
         };
+        debug!("Detected `go.mod` in project root");
         if !file_stat.is_file() {
             return Ok(None);
         }
@@ -156,18 +158,20 @@ WORKDIR /app
     }
 }
 
-/// Build Kotlin projects.
-pub mod kotlin {
+/// Build Java and Kotlin applications using Gradle.
+pub mod gradle {
+    use log::debug;
     use super::DetectBuildTargetError;
     use super::DockerFileBuilder;
     use super::Error;
 
-    pub struct Kotlin(Config);
+    pub struct Gradle(Config);
 
     pub struct Config {
         pub filesystem_path: String,
         pub docker_builder_image: String,
         pub docker_runtime_image: String,
+        pub settings_file: Option<String>,
 
         #[allow(dead_code)]
         pub start_hook: Option<String>,
@@ -175,18 +179,19 @@ pub mod kotlin {
         pub end_hook: Option<String>,
     }
 
-    pub fn new(cfg: Config) -> Result<Option<Kotlin>, Error> {
+    pub fn new(cfg: Config) -> Result<Option<Gradle>, Error> {
         let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/gradlew") else {
             return Ok(None);
         };
+        debug!("Detected `gradlew` in project root");
         if !file_stat.is_file() {
             return Ok(None);
         }
 
-        Ok(Some(Kotlin(cfg)))
+        Ok(Some(Gradle(cfg)))
     }
 
-    impl DockerFileBuilder for Kotlin {
+    impl DockerFileBuilder for Gradle {
         fn builder_docker_image(&self) -> String {
             self.0.docker_builder_image.clone()
         }
@@ -206,7 +211,12 @@ pub mod kotlin {
             let runtime_image = &self.runtime_docker_image();
             let binary_build_commands: String = targets
                 .iter()
-                .map(|target| { format!("RUN ./gradlew {target}") })
+                .map(|target| {
+                    match &self.0.settings_file {
+                        None => format!("RUN ./gradlew {target}"),
+                        Some(settings_file) => format!("RUN ./gradlew -settings-file {settings_file} {target}"),
+                    }
+                })
                 .fold(String::new(), |acc, item| acc + "\n" + &item)
                 .trim()
                 .to_string();

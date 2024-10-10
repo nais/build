@@ -47,18 +47,10 @@ build_docker_image = "golang:1-alpine"
 runtime_docker_image = "alpine:3"
 
 # https://hub.docker.com/_/eclipse-temurin
-[sdk.java]
-build_system = "maven"  # or gradle, ...
-build_docker_image = "eclipse-temurin:22-alpine"
-runtime_docker_image = "eclipse-temurin:22-alpine"
-# Steinsland sier:
-# build: ...
-# runtime: distroless
-
-[sdk.kotlin]
-#build_system = "kt"  # or gradle, ...
+[sdk.gradle]
 build_docker_image = "eclipse-temurin:21"
 runtime_docker_image = "eclipse-temurin:21"
+#settings_file = "settings.gradle.kts"
 
 # Maven is currently at 3.9.8
 [sdk.maven]

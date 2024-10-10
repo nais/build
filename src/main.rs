@@ -170,10 +170,11 @@ fn init_sdk(
         Ok(None) => {}
         Err(err) => return Err(Error::from(err)),
     }
-    match sdk::kotlin::new(sdk::kotlin::Config {
+    match sdk::gradle::new(sdk::gradle::Config {
         filesystem_path: filesystem_path.to_string(),
-        docker_builder_image: cfg.sdk.kotlin.build_docker_image.clone(),
-        docker_runtime_image: cfg.sdk.kotlin.runtime_docker_image.clone(),
+        docker_builder_image: cfg.sdk.gradle.build_docker_image.clone(),
+        docker_runtime_image: cfg.sdk.gradle.runtime_docker_image.clone(),
+        settings_file: cfg.sdk.gradle.settings_file.clone(),
         start_hook: None,
         end_hook: None,
     }) {

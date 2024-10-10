@@ -93,35 +93,8 @@ fn main() -> Result<(), Error> {
     let args = Cli::parse();
     let cfg = read_config(&args)?;
 
-    let nais_yaml_path = match nais_yaml::detect_nais_yaml(&args.source_directory) {
-        Ok(value) => Some(value),
-        Err(nais_yaml::Error::NaisYamlNotFound) => None,
-        Err(e) => return Err(DetectNaisYaml(e)),
-    };
-
-    // Forslaget til @x10an14-nav:
-    // let nais_yaml_path = match nais_yaml::detect_nais_yaml(&args.source_directory) {
-    //     Ok(value) => value,
-    //     // Bytt ut `todo!()` med None igjen elns hvis dere vil dette skal kjøre
-    //     // før Default trait (eller tilsvarende) for NaisYaml sin path er implementert
-    //     //    ref `.expect("FIXME: team and app needs to be inferred from nais.yaml")`
-    //     //
-    //     // (burde vel kanskje legge noe av den logikken i main nå inn i `detect_nais_yaml`,
-    //     // evnt en fremtidig lignende funksjon, men det har dere sikkert tenkt på).
-    //     Err(nais_yaml::Error::NaisYamlNotFound) => {
-    //         // TODO: nais_yaml::NaisYaml::default_path()
-    //         todo!()
-    //     }
-    //     Err(e) => return Err(DetectNaisYaml(e)),
-    // };
-
-    let nais_yaml_data = nais_yaml::NaisYaml::parse(
-        &std::fs::read_to_string(
-            nais_yaml_path.expect("FIXME: team and app needs to be inferred from nais.yaml"),
-        )
-        .expect("Unable to read the NAIS yaml file's contents")
-    )
-    .expect("Invalid yaml datastructure for `NaisYaml` parsing");
+    let nais_yaml_path = nais_yaml::detect_nais_yaml(&args.source_directory)?;
+    let nais_yaml_data = nais_yaml::NaisYaml::parse_file(&nais_yaml_path)?;
 
     let docker_image_name = cfg
         .release

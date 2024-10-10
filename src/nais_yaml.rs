@@ -10,6 +10,12 @@ pub enum Error {
     #[error("scan file system: {0}")]
     FileSystem(#[from] std::io::Error),
 
+    #[error("read {path}: {err}")]
+    ReadFile {
+        err: std::io::Error,
+        path: String,
+    },
+
     #[error("deserialize: {0}")]
     Deserialize(#[from] serde_yaml::Error),
 }
@@ -69,6 +75,15 @@ impl NaisYaml {
             team: parsed.metadata.namespace,
             app: parsed.metadata.name,
         })
+    }
+
+    pub fn parse_file(path: &str) -> Result<Self, Error> {
+        Self::parse(
+            &std::fs::read_to_string(path).map_err(|err| ReadFile {
+                err,
+                path: path.to_string(),
+            })?
+        )
     }
 }
 

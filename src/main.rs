@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use std::io::Write;
 use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
-use log::{info};
+use log::{error, info};
 use sdk::DockerFileBuilder;
 
 #[allow(dead_code)]
@@ -61,20 +61,25 @@ pub enum Error {
     SDKError(#[from] sdk::Error),
 }
 
-/// Read configuration file from disk.
+/// Read configuration file from disk and merge it with the
+/// `default.toml` [built-in config](../default.toml).
 ///
 /// If a configuration file name is not set explicitly, this function will
 /// detect whether a config file with the default file name exists on disk.
 /// If it does, it is used implicitly. If not, we ignore any read errors.
 fn read_config(args: &Cli) -> Result<config::file::File, Error> {
     const DEFAULT_CONFIG_FILE: &str = "nb.toml";
+
+    // Typically found in project root, e.g. ./nb.toml
+    let config_path = format!("{}/{}", args.source_directory, DEFAULT_CONFIG_FILE);
+
     let config_file = match &args.config {
         None => {
-            if std::fs::metadata(DEFAULT_CONFIG_FILE)
+            if std::fs::metadata(&config_path)
                 .and_then(|metadata| Ok(metadata.is_file()))
                 .unwrap_or(false)
             {
-                Some(DEFAULT_CONFIG_FILE.into())
+                Some(config_path.into())
             } else {
                 None
             }
@@ -84,17 +89,31 @@ fn read_config(args: &Cli) -> Result<config::file::File, Error> {
 
     Ok(if let Some(config_file) = config_file {
         let config_string = std::fs::read_to_string(&config_file)?;
+        let merged_config_string = config::toml_merge::merge_files(&[
+            config::file::DEFAULT_CONFIG,
+            &config_string,
+        ])?;
         toml::from_str::<config::file::File>(&config_string)?
     } else {
         config::file::File::default()
     })
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
+    match run() {
+        Ok(_) => std::process::exit(0),
+        Err(err) => {
+            error!("fatal: {}", err.to_string());
+            std::process::exit(1)
+        }
+    }
+}
+
+fn run() -> Result<(), Error> {
+    env_logger::init();
+
     let args = Cli::parse();
     let cfg = read_config(&args)?;
-
-    env_logger::init();
 
     info!("NAIS build 1.0.0");
 

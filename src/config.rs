@@ -1,17 +1,74 @@
+pub mod toml_merge {
+    // from https://github.com/mrnerdhair/toml-merge/blob/c44eee7c7fa52e98b34c20c88d19979adcafcf1b/src/main.rs
+    fn merge(merged: &mut toml::Value, value: &toml::Value) {
+        match value {
+            toml::Value::String(_) |
+            toml::Value::Integer(_) |
+            toml::Value::Float(_) |
+            toml::Value::Boolean(_) |
+            toml::Value::Datetime(_) => *merged = value.clone(),
+            toml::Value::Array(x) => {
+                match merged {
+                    toml::Value::Array(merged) => {
+                        for (k, v) in x.iter().enumerate() {
+                            match merged.get_mut(k) {
+                                Some(x) => merge(x, v),
+                                None => {
+                                    let _ = merged.insert(k.clone(), v.clone());
+                                }
+                            }
+                        }
+                    }
+                    _ => *merged = value.clone(),
+                }
+            }
+            toml::Value::Table(x) => {
+                match merged {
+                    toml::Value::Table(merged) => {
+                        for (k, v) in x.iter() {
+                            match merged.get_mut(k) {
+                                Some(x) => merge(x, v),
+                                None => {
+                                    let _ = merged.insert(k.clone(), v.clone());
+                                }
+                            }
+                        }
+                    }
+                    _ => *merged = value.clone(),
+                }
+            }
+        }
+    }
+
+    /// Merge one or more TOML files into one.
+    /// Returns a String with the merged TOMLs.
+    ///
+    /// FIXME: this function doesn't return valid TOML yet
+    pub fn merge_files(file_contents: &[&str]) -> Result<String, toml::de::Error> {
+        let mut merged: toml::Value = toml::Value::Table(toml::value::Table::new());
+        for toml_data in file_contents.iter() {
+            let value: toml::value::Table = toml::from_str(toml_data)?;
+            merge(&mut merged, &toml::Value::Table(value));
+        }
+        //Ok(merged.to_string().trim_start_matches("{").trim_end_matches("}").to_string())
+        Ok(merged.to_string())
+    }
+}
+
 pub mod file {
     /// Contains structures for parsing the nb.toml configuration file.
 
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
     use serde_inline_default::serde_inline_default;
     use std::collections::HashMap;
 
     /// Built-in default configuration.
     ///
     /// TODO: merge this file with user-supplied file?
-    const DEFAULT_CONFIG: &str = include_str!("../default.toml");
+    pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");
 
     /// A nb.toml file.
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct File {
         pub description: Option<String>,
         pub team: Option<String>,
@@ -30,14 +87,14 @@ pub mod file {
         }
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct BranchRule {
         output: String,
         deploy: BranchDeployRule,
     }
 
     #[serde_inline_default]
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct BranchDeployRule {
         pub environments: Vec<String>,
         //pub app_name_prefix: String,
@@ -45,40 +102,40 @@ pub mod file {
         pub parallel: bool,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Sdk {
         pub go: SdkGolang,
         pub rust: SdkRust,
         pub gradle: SdkGradle,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct SdkGolang {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct SdkRust {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct SdkGradle {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
         pub settings_file: Option<String>,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Build {
         typ: String,
         sdk: String,
         docker: Docker,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Docker {
         image_name: String,
         image_tag: String,
@@ -90,7 +147,7 @@ pub mod file {
          */
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Release {
         #[serde(rename = "type")]
         pub typ: ReleaseType,
@@ -114,12 +171,12 @@ pub mod file {
         }
     }
 
-    #[derive(Deserialize, Debug, Clone)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct ReleaseParams {
         pub registry: String,
     }
 
-    #[derive(Deserialize, Debug, Eq, PartialEq)]
+    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
     pub enum ReleaseType {
         #[serde(rename = "gar")]
         /// Google Artifact Registry

@@ -1,7 +1,23 @@
 # NAIS Build
 
-Opinionated continuous integration pipeline runner,
-tailored for NAV IT developers on the NAIS platform.
+NAIS Build, or `nb`, is an opinionated continuous integration pipeline runner,
+tailored for developers on the NAIS platform.
+
+## Features
+* Generates best-practice Dockerfiles for standardized Go and Gradle projects.
+* Builds Docker images with correct repository, namespace, team and date-based tag.
+* No Dockerfile needed, _nb_ will generate one for you.
+* Build target detection with zero configuration.
+* Uses the latest build and runtime environments.
+* Run and debug the CI pipeline on your local computer.
+* It's very fast.
+
+## Roadmap
+* Support for many kinds of Go, Rust, Java, and Kotlin projects.
+* Build, test, lint, and auditing using best practices.
+* Publish built artifacts to Google Artifact Registry, GHCR, and GitHub releases.
+* Deploy artifacts to Kubernetes using NAIS deploy, or upload to CDN.
+* Matrix builds.
 
 ## Design goals
 * Run fast, and anywhere.
@@ -10,45 +26,33 @@ tailored for NAV IT developers on the NAIS platform.
 * Cover most use cases with zero or minimal configuration.
 * Flexible enough to allow build customization.
 
-## Features
-* Build, test, lint, and audit your source code.
-* Automatically uses the latest build and runtime environments.
-* Packages your program into a Docker container.
-* Publishes built artifacts to Google Artifact Registry and GitHub releases.
-* Deploys artifacts to Kubernetes or your team's CDN bucket.
-* Run and debug the pipeline on your local computer.
-* No Dockerfile needed.
-* Supports Go, Rust, Java, and Kotlin.
-* Matrix builds.
-
 ## Replaces
-
 - `Dockerfile`. If NAIS Build is able to successfully detect your build parameters,
   you don't need a Dockerfile in your repository.
-- _Github workflow YAML files_. NAIS Build will perform all the steps found in `nais-build-sign-push`.
+- _Github workflow YAML files_. NAIS Build will perform all the steps found in `nais-build-push`.
 
 ## Usage
-Run the build pipeline from your local machine.
+Install using:
 
-    nb
+    cargo install --path .
 
-Run the build pipeline from your local machine, but use a pre-defined Dockerfile
-instead of using auto-detected parameters. This is useful for complex builds.
-NAIS Build assumes that you run tests and lint as part of this step.
+Run the build pipeline from your local machine:
 
-    nb --dockerfile=Dockerfile
+    nb build
 
-Generate a configuration file based on default values, for easy extension.
+Show the Dockerfile that NAIS Build generates and uses to build your program:
 
-    nb default-config > build.toml
+    nb dockerfile
+
+### Proposed future commands
 
 Validate configuration.
 
     nb check
 
-Show the Dockerfile that NAIS Build generates and uses to build your program:
+Generate a configuration file based on default values, for easy extension.
 
-    nb dockerfile
+    nb default-config > build.toml
 
 Run from a Github Workflow, set up `.github/workflows/nb.yml` file that runs:
 
@@ -60,27 +64,3 @@ This project is written in stable Rust, with a recommended minimal version of 1.
 ### Github workflow templates
 * https://github.com/navikt/sif-gha-workflows/tree/main/.github/workflows
 * https://github.com/navikt/fp-gha-workflows/tree/main/.github/workflows
-
-### Build process
-
-#### Go
-* override go.mod with any sdk-controlled version bumps
-  * "go 1.22"
-  * "toolchain 1.22.5"
-* go get
-* go test
-* linting?
-* staticcheck?
-* detect which binaries to build (cmd/*/*.go)
-    * go build (flags for docker, architecture, etc)
-
-#### Rust
-* cargo build --release
-
-#### Java/Kotlin
-* TODO
-* Env (settes med fordel i nais.yml):
-  * `TZ` (kan settes automatisk i Naiserator?)
-    * Taes opp til diskusjon
-  * `MAX_RAM_PERCENTAGE=90`
-  * `JVM_OPTS="-Xmx4G -Xms1G"` (obsolete?)

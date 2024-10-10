@@ -93,7 +93,7 @@ fn read_config(args: &Cli) -> Result<config::file::File, Error> {
             config::file::DEFAULT_CONFIG,
             &config_string,
         ])?;
-        toml::from_str::<config::file::File>(&config_string)?
+        toml::from_str::<config::file::File>(&merged_config_string)?
     } else {
         config::file::File::default()
     })

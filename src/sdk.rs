@@ -176,7 +176,7 @@ pub mod kotlin {
     }
 
     pub fn new(cfg: Config) -> Result<Option<Kotlin>, Error> {
-        let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/go.mod") else {
+        let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/gradlew") else {
             return Ok(None);
         };
         if !file_stat.is_file() {

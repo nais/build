@@ -60,9 +60,29 @@ pub mod file {
     use serde::{Deserialize, Serialize};
     use serde_inline_default::serde_inline_default;
     use std::collections::HashMap;
+    use thiserror::Error;
+    use crate::config::file::Error::{ParseConfig, ReadConfig, Serialization};
 
     /// Built-in default configuration.
     pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");
+
+    #[derive(Debug, Error)]
+    pub enum Error {
+        #[error(r#"read "{filename}": {err}"#)]
+        ReadConfig {
+            err: std::io::Error,
+            filename: String,
+        },
+
+        #[error(r#"parse "{filename}": {err}"#)]
+        ParseConfig {
+            err: toml::de::Error,
+            filename: String,
+        },
+
+        #[error("{0}")]
+        Serialization(toml::de::Error),
+    }
 
     /// A nb.toml file.
     #[derive(Serialize, Deserialize, Debug)]
@@ -71,7 +91,6 @@ pub mod file {
         pub team: Option<String>,
         #[serde(default = "HashMap::new")]
         pub branch: HashMap<String, BranchRule>,
-        //#[serde(default = "Default::default")]
         pub sdk: Sdk,
         pub release: Release,
     }
@@ -81,6 +100,28 @@ pub mod file {
             // The default config is compiled into the program, so
             // make sure to test default() to catch panics compile-time.
             toml::from_str(DEFAULT_CONFIG).unwrap()
+        }
+    }
+
+    impl File {
+        pub fn default_with_user_config_file(filename: &str) -> Result<Self, Error> {
+            let config_string = std::fs::read_to_string(filename)
+                .map_err(|err| { ReadConfig { err, filename: filename.to_string() } })?;
+
+            if let Err(err) = toml::from_str::<File>(&config_string) {
+                return Err(ParseConfig { err, filename: filename.to_string() });
+            }
+
+            let merged_config_string = super::toml_merge::merge_files(&[
+                DEFAULT_CONFIG,
+                &config_string,
+            ])
+                .map_err(Serialization)?;
+
+            Ok(
+                toml::from_str::<File>(&merged_config_string)
+                    .map_err(|err| ParseConfig { err, filename: filename.to_string() })?
+            )
         }
     }
 

@@ -45,8 +45,8 @@ pub enum Error {
     #[error("filesystem error: {0}")]
     FilesystemError(#[from] std::io::Error),
 
-    #[error("configuration file syntax error: {0}")]
-    ConfigDeserialize(#[from] toml::de::Error),
+    #[error("configuration file: {0}")]
+    ConfigParse(#[from] config::file::Error),
 
     #[error("docker tag could not be generated: {0}")]
     DockerTag(#[from] config::docker::tag::Error),
@@ -88,12 +88,7 @@ fn read_config(args: &Cli) -> Result<config::file::File, Error> {
     };
 
     Ok(if let Some(config_file) = config_file {
-        let config_string = std::fs::read_to_string(&config_file)?;
-        let merged_config_string = config::toml_merge::merge_files(&[
-            config::file::DEFAULT_CONFIG,
-            &config_string,
-        ])?;
-        toml::from_str::<config::file::File>(&merged_config_string)?
+        config::file::File::default_with_user_config_file(&config_file)?
     } else {
         config::file::File::default()
     })

@@ -285,6 +285,7 @@ pub mod maven {
     use super::DockerFileBuilder;
     use super::Error;
     use log::debug;
+    use sxd_xpath::Value;
 
     pub struct Maven(Config);
 
@@ -303,12 +304,147 @@ pub mod maven {
         let Ok(file_stat) = std::fs::metadata(cfg.filesystem_path.to_owned() + "/pom.xml") else {
             return Ok(None);
         };
+
         debug!("Detected `pom.xml` in project root");
+
         if !file_stat.is_file() {
             return Ok(None);
         }
 
         Ok(Some(Maven(cfg)))
+    }
+
+    fn pom_modules(xml_document: &str) -> Vec<String> {
+        use sxd_document::parser;
+        use sxd_xpath::{evaluate_xpath};
+
+        let package = parser::parse(xml_document).expect("package");
+        let doc = package.as_document();
+        let value = evaluate_xpath(&doc, "/*[name()='project']/*[name()='modules']/*").expect("evaluate_xpath");
+
+        let mut modules = if let Value::Nodeset(node_set) = value {
+            node_set.iter().map(|value| value.string_value()).collect()
+        } else {
+            vec![]
+        };
+        modules.sort();
+        modules
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn pom_test_modules() {
+        let xml_document = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+    </parent>
+
+    <groupId>no.nav.institusjon</groupId>
+    <artifactId>institusjon</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>apps</module>
+        <module>test-doubles</module>
+        <module>libs</module>
+    </modules>
+
+    <properties>
+        <asm.version>9.7.1</asm.version>
+        <commons-compress.version>1.27.1</commons-compress.version>
+        <confluent.version>7.7.1</confluent.version>
+        <java.version>17</java.version>
+        <jaxb.version>4.0.2</jaxb.version>
+        <jetty.version>11.0.18</jetty.version>
+        <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
+        <maven-jaxb2-plugin.version>0.15.1</maven-jaxb2-plugin.version>
+        <maven-jaxb30-plugin.version>0.16.1</maven-jaxb30-plugin.version>
+        <mq-jms-spring-boot-starter.version>3.3.3</mq-jms-spring-boot-starter.version>
+        <ojdbc8.version>23.5.0.24.07</ojdbc8.version>
+        <papertrailapp.version>1.0.0</papertrailapp.version>
+        <spring-cloud-vault.version>4.1.3</spring-cloud-vault.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <swagger-v3.version>2.1.11</swagger-v3.version>
+        <wiremock.version>3.0.0-beta-10</wiremock.version>
+        <wiremock-stubs.version>1.0.0-SNAPSHOT</wiremock-stubs.version>
+        <wiremock-junit-extension.version>1.0.2.RELEASE</wiremock-junit-extension.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.ow2.asm</groupId>
+                <artifactId>asm</artifactId>
+                <version>${asm.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>no.nav.institusjon</groupId>
+                <artifactId>wiremock-stubs</artifactId>
+                <version>${wiremock-stubs.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.ee10</groupId>
+                <artifactId>jetty-ee10-bom</artifactId>
+                <version>12.0.14</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <rules>
+                                <dependencyConvergence/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+        "#;
+        let strval = pom_modules(xml_document);
+        assert_eq!(strval, vec!["apps", "libs", "test-doubles"]);
     }
 
     impl DockerFileBuilder for Maven {

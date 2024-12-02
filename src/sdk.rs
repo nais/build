@@ -234,6 +234,8 @@ pub mod gradle {
                 .to_string();
             let binary_copy_commands: String = "COPY --from=builder /src/build/libs/app-all.jar /app/app.jar".to_string();
 
+            let max_ram_percentage = 90;
+
             // TODO: evaluate and add
             // * Env (settes med fordel i nais.yml):
             // * `TZ` (kan settes automatisk i Naiserator?)
@@ -319,6 +321,7 @@ pub mod maven {
         Ok(Some(Maven(cfg)))
     }
 
+    #[allow(dead_code)]
     fn pom_modules(xml_document: &str) -> Vec<String> {
         use sxd_document::parser;
         use sxd_xpath::{evaluate_xpath};

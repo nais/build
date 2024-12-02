@@ -91,8 +91,8 @@ pub mod file {
         pub team: Option<String>,
         #[serde(default = "HashMap::new")]
         pub branch: HashMap<String, BranchRule>,
-        pub sdk: Sdk,
-        pub release: Release,
+        pub sdk: Option<Sdk>,
+        pub release: Option<Release>,
     }
 
     impl Default for File {
@@ -140,7 +140,7 @@ pub mod file {
         pub parallel: bool,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct Sdk {
         pub go: SdkGolang,
         pub rust: SdkRust,
@@ -148,26 +148,26 @@ pub mod file {
         pub maven: SdkMaven,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SdkGolang {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SdkRust {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SdkGradle {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
         pub settings_file: Option<String>,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SdkMaven {
         pub build_docker_image: String,
         pub runtime_docker_image: String,
@@ -192,7 +192,7 @@ pub mod file {
          */
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct Release {
         #[serde(rename = "type")]
         pub typ: ReleaseType,
@@ -207,13 +207,6 @@ pub mod file {
                 ReleaseType::GHCR => self.ghcr.clone(),
             }
         }
-
-        pub fn docker_name_builder(&self, config: super::docker::name::Config) -> Box<dyn ToString> {
-            match self.typ {
-                ReleaseType::GAR => Box::new(super::docker::name::GoogleArtifactRegistry(config)),
-                ReleaseType::GHCR => Box::new(super::docker::name::GitHubContainerRegistry(config)),
-            }
-        }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -221,7 +214,7 @@ pub mod file {
         pub registry: String,
     }
 
-    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
     pub enum ReleaseType {
         #[serde(rename = "gar")]
         /// Google Artifact Registry
@@ -241,7 +234,7 @@ pub mod file {
         pub fn load_default_configuration() {
             let cfg = File::default();
             assert_eq!(cfg.description, Some("Default configuration file".into()));
-            assert_eq!(cfg.release.typ, GAR);
+            assert_eq!(cfg.release.unwrap().typ, GAR);
         }
     }
 }

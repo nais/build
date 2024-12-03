@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use std::io::Write;
 use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
-use log::{error, info};
+use log::{debug, error, info};
 use sdk::DockerFileBuilder;
 use crate::nais_yaml::NaisYaml;
 
@@ -64,11 +64,23 @@ pub enum Error {
     #[error("docker build failed with exit code {0}")]
     DockerBuild(ExitStatus),
 
+    #[error("docker login failed with exit code {0}")]
+    DockerLogin(ExitStatus),
+
+    #[error("docker logout failed with exit code {0}")]
+    DockerLogout(ExitStatus),
+
     #[error("detect nais.yaml: {0}")]
     DetectNaisYaml(#[from] nais_yaml::Error),
 
     #[error("build error: {0}")]
     SDKError(#[from] sdk::Error),
+
+    #[error("google cloud auth error: {0}")]
+    GoogleCloudAuthError(#[from] google_cloud_auth::error::Error),
+
+    #[error("google cloud auth token error {0}")]
+    GoogleCloudAuthTokenError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Read configuration file from disk and merge it with the
@@ -104,8 +116,9 @@ fn read_config(args: &Cli) -> Result<config::file::File, Error> {
     })
 }
 
-fn main() {
-    match run() {
+#[tokio::main]
+async fn main() {
+    match run().await {
         Ok(_) => std::process::exit(0),
         Err(err) => {
             error!("fatal: {}", err.to_string());
@@ -114,7 +127,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Error> {
+async fn run() -> Result<(), Error> {
     env_logger::init();
 
     let args = Cli::parse();
@@ -130,6 +143,7 @@ fn run() -> Result<(), Error> {
     let cfg = config::runtime::Config::new(&cfg_file, nais_yaml_data).map_err(Config)?;
 
     info!("Application name detected: {}", &cfg.app);
+    // FIXME: cfg.team might be an empty string
     info!("Team detected: {}", &cfg.team);
 
     let mut docker_name_config = config::docker::name::Config {
@@ -138,7 +152,6 @@ fn run() -> Result<(), Error> {
         team: cfg.team,
         app: cfg.app,
     };
-
 
     match args.command {
         Commands::Dockerfile => {
@@ -160,9 +173,77 @@ fn run() -> Result<(), Error> {
             }
             let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
             info!("Docker image tag: {}", docker_image_name);
-            todo!()
+
+            // TODO: build if not already built
+
+            // TODO: auth to gar and/or ghcr
+            let token = get_gar_auth_token().await?;
+            let token = token.strip_prefix("Bearer ").unwrap_or(&token).to_string();
+
+            docker_login(cfg.release.params.registry.clone(), token)?;
+
+            // TODO: push to gar and/or ghcr
+
+            docker_logout(cfg.release.params.registry.clone())?;
+            Ok(())
         }
     }
+}
+
+fn docker_login(registry: String, token: String) -> Result<(), Error> {
+    debug!("Logging in to Docker registry {}", registry);
+    let mut child = std::process::Command::new("docker")
+        .arg("login")
+        .arg(registry)
+        .arg("--username")
+        .arg("oauth2accesstoken") // TODO: this only works for GAR
+        .arg("--password-stdin")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+
+    child.stdin.as_mut().unwrap().write_all(token.as_bytes())?;
+    let status = child.wait_with_output()?.status;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(DockerLogin(status))
+    }
+}
+
+fn docker_logout(registry: String) -> Result<(), Error> {
+    std::process::Command::new("docker")
+        .arg("logout")
+        .arg(registry)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .map(|exit_status| {
+            if exit_status.success() {
+                Ok(())
+            } else {
+                Err(DockerLogout(exit_status))
+            }
+        })?
+}
+
+async fn get_gar_auth_token() -> Result<String, Error> {
+    use google_cloud_auth::{project::Config, token::DefaultTokenSourceProvider};
+    use google_cloud_token::TokenSourceProvider as _;
+
+    let audience = "https://oauth2.googleapis.com/token/";
+    let scopes = [
+        "https://www.googleapis.com/auth/cloud-platform",
+    ];
+
+    let config = Config::default()
+        .with_audience(audience)
+        .with_scopes(&scopes);
+    let tsp = DefaultTokenSourceProvider::new(config).await.map_err(GoogleCloudAuthError)?;
+    let ts = tsp.token_source();
+    let token = ts.token().await.map_err(GoogleCloudAuthTokenError)?;
+    Ok(token)
 }
 
 fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(), Error> {

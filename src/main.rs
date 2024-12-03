@@ -2,7 +2,7 @@
 use crate::Error::*;
 use clap::{Parser, Subcommand};
 use thiserror::Error;
-use log::{error, info};
+use log::{debug, error, info};
 use sdk::DockerFileBuilder;
 use crate::nais_yaml::NaisYaml;
 
@@ -161,13 +161,17 @@ async fn run() -> Result<(), Error> {
             Ok(())
         }
         Commands::Release { tag } => {
-            if let Some(tag) = tag {
-                docker_name_config.tag = tag
+            if let Some(tag) = &tag {
+                docker_name_config.tag = tag.clone()
             }
             let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
             info!("Docker image tag: {}", docker_image_name);
 
-            // TODO: build if not already built
+            if tag.is_none() {
+                debug!("tag not supplied, building Docker image");
+                let sdk = init_sdk(&args.source_directory, &cfg_file)?;
+                docker::build(sdk, &docker_image_name)?;
+            }
 
             // TODO: auth to ghcr
             let token = get_gar_auth_token().await?;

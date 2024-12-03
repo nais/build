@@ -17,12 +17,12 @@ mod sdk;
 #[command(version, about, long_about = None)]
 struct Cli {
     /// Root of the source code tree.
-    #[arg(short, long, default_value = ".")]
+    #[arg(default_value = ".")]
     source_directory: String,
 
     /// Path to the NAIS build configuration file.
     // ... TODO: or nais.toml?
-    #[arg(short, long)]
+    #[arg(long)]
     config: Option<String>,
 
     #[command(subcommand)]
@@ -31,10 +31,17 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Detect build parameters and print your Dockerfile.
+    /// Detect build parameters, generate a Dockerfile for your project, and print it to standard output.
     Dockerfile,
-    /// Build your project into a Dockerfile.
+    /// Build your project, resulting in a Docker image. Implies the `dockerfile` command.
     Build,
+    /// Release this project's verified Docker image onto GAR or GHCR.
+    Release {
+        /// Use a tag from a Docker image that is already built and exists on the system.
+        /// Omitting this flag implies the `build` command.
+        #[arg(long)]
+        tag: Option<String>,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -125,27 +132,35 @@ fn run() -> Result<(), Error> {
     info!("Application name detected: {}", &cfg.app);
     info!("Team detected: {}", &cfg.team);
 
-    let docker_image_name = cfg
-        .release
-        .docker_name_builder(config::docker::name::Config {
-            registry: cfg.release.params.registry.clone(),
-            tag: config::docker::tag::generate(&args.source_directory)?,
-            team: cfg.team,
-            app: cfg.app,
-        })
-        .to_string();
+    let mut docker_name_config = config::docker::name::Config {
+        registry: cfg.release.params.registry.clone(),
+        tag: config::docker::tag::generate(&args.source_directory)?,
+        team: cfg.team,
+        app: cfg.app,
+    };
+
 
     match args.command {
         Commands::Dockerfile => {
+            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
             let sdk = init_sdk(&args.source_directory, &cfg_file)?;
             println!("{}\n", sdk.dockerfile()?);
             info!("Docker image tag: {}", docker_image_name);
             Ok(())
         }
         Commands::Build => {
+            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
             let sdk = init_sdk(&args.source_directory, &cfg_file)?;
             build(sdk, &docker_image_name)?;
             Ok(())
+        }
+        Commands::Release { tag } => {
+            if let Some(tag) = tag {
+                docker_name_config.tag = tag
+            }
+            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
+            info!("Docker image tag: {}", docker_image_name);
+            todo!()
         }
     }
 }

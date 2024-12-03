@@ -6,10 +6,8 @@ use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
 use log::{error, info};
 use sdk::DockerFileBuilder;
-use crate::config::file::{ReleaseParams, ReleaseType};
 use crate::nais_yaml::NaisYaml;
 
-#[allow(dead_code)]
 mod config;
 mod nais_yaml;
 mod sdk;
@@ -51,7 +49,7 @@ pub enum Error {
     ConfigParse(#[from] config::file::Error),
 
     #[error("configuration: {0}")]
-    Config(#[from] REALError),
+    Config(#[from] config::runtime::Error),
 
     #[error("docker tag could not be generated: {0}")]
     DockerTag(#[from] config::docker::tag::Error),
@@ -109,47 +107,6 @@ fn main() {
     }
 }
 
-struct Release {
-    pub typ: ReleaseType,
-    pub params: ReleaseParams,
-}
-
-impl Release {
-    pub fn docker_name_builder(&self, config: config::docker::name::Config) -> Box<dyn ToString> {
-        match self.typ {
-            ReleaseType::GAR => Box::new(config::docker::name::GoogleArtifactRegistry(config)),
-            ReleaseType::GHCR => Box::new(config::docker::name::GitHubContainerRegistry(config)),
-        }
-    }
-}
-
-struct REALConfig {
-    app: String,
-    team: String,
-    release: Release,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum REALError {
-    #[error("missing configuration")]
-    MissingConfig,
-}
-
-impl REALConfig {
-    fn new(cfg: &config::file::File, nais_yaml: NaisYaml) -> Result<REALConfig, REALError> {
-        let release = cfg.release.clone().ok_or(REALError::MissingConfig)?;
-        let release_params = release.value();
-        Ok(REALConfig {
-            app: nais_yaml.app,
-            team: cfg.team.clone().unwrap_or(nais_yaml.team),
-            release: Release {
-                typ: release.typ,
-                params: release_params,
-            },
-        })
-    }
-}
-
 fn run() -> Result<(), Error> {
     env_logger::init();
 
@@ -163,7 +120,7 @@ fn run() -> Result<(), Error> {
 
     let nais_yaml_data = NaisYaml::parse_file(&nais_yaml_path)?;
 
-    let cfg = REALConfig::new(&cfg_file, nais_yaml_data).map_err(Config)?;
+    let cfg = config::runtime::Config::new(&cfg_file, nais_yaml_data).map_err(Config)?;
 
     info!("Application name detected: {}", &cfg.app);
     info!("Team detected: {}", &cfg.team);

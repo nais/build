@@ -42,8 +42,6 @@ pub mod toml_merge {
 
     /// Merge one or more TOML files into one.
     /// Returns a String with the merged TOMLs.
-    ///
-    /// FIXME: this function doesn't return valid TOML yet
     pub fn merge_files(file_contents: &[&str]) -> Result<String, toml::de::Error> {
         let mut merged: toml::Value = toml::Value::Table(toml::value::Table::new());
         for toml_data in file_contents.iter() {
@@ -54,76 +52,11 @@ pub mod toml_merge {
     }
 }
 
-pub mod file {
-    /// Contains structures for parsing the nb.toml configuration file.
-
+pub mod runtime {
     use serde::{Deserialize, Serialize};
     use serde_inline_default::serde_inline_default;
-    use std::collections::HashMap;
     use thiserror::Error;
-    use crate::config::file::Error::{ParseConfig, ReadConfig, Serialization};
-
-    /// Built-in default configuration.
-    pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");
-
-    #[derive(Debug, Error)]
-    pub enum Error {
-        #[error(r#"read "{filename}": {err}"#)]
-        ReadConfig {
-            err: std::io::Error,
-            filename: String,
-        },
-
-        #[error(r#"parse "{filename}": {err}"#)]
-        ParseConfig {
-            err: toml::de::Error,
-            filename: String,
-        },
-
-        #[error("{0}")]
-        Serialization(toml::de::Error),
-    }
-
-    /// A nb.toml file.
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct File {
-        pub description: Option<String>,
-        pub team: Option<String>,
-        #[serde(default = "HashMap::new")]
-        pub branch: HashMap<String, BranchRule>,
-        pub sdk: Option<Sdk>,
-        pub release: Option<Release>,
-    }
-
-    impl Default for File {
-        fn default() -> Self {
-            // The default config is compiled into the program, so
-            // make sure to test default() to catch panics compile-time.
-            toml::from_str(DEFAULT_CONFIG).unwrap()
-        }
-    }
-
-    impl File {
-        pub fn default_with_user_config_file(filename: &str) -> Result<Self, Error> {
-            let config_string = std::fs::read_to_string(filename)
-                .map_err(|err| { ReadConfig { err, filename: filename.to_string() } })?;
-
-            if let Err(err) = toml::from_str::<File>(&config_string) {
-                return Err(ParseConfig { err, filename: filename.to_string() });
-            }
-
-            let merged_config_string = super::toml_merge::merge_files(&[
-                DEFAULT_CONFIG,
-                &config_string,
-            ])
-                .map_err(Serialization)?;
-
-            Ok(
-                toml::from_str::<File>(&merged_config_string)
-                    .map_err(|err| ParseConfig { err, filename: filename.to_string() })?
-            )
-        }
-    }
+    use crate::nais_yaml::NaisYaml;
 
     #[derive(Serialize, Deserialize, Debug)]
     pub struct BranchRule {
@@ -193,23 +126,6 @@ pub mod file {
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
-    pub struct Release {
-        #[serde(rename = "type")]
-        pub typ: ReleaseType,
-        ghcr: ReleaseParams,
-        gar: ReleaseParams,
-    }
-
-    impl Release {
-        pub fn value(&self) -> ReleaseParams {
-            match self.typ {
-                ReleaseType::GAR => self.gar.clone(),
-                ReleaseType::GHCR => self.ghcr.clone(),
-            }
-        }
-    }
-
-    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct ReleaseParams {
         pub registry: String,
     }
@@ -223,6 +139,138 @@ pub mod file {
         #[serde(rename = "ghcr")]
         /// GitHub Container Registry
         GHCR,
+    }
+
+    pub struct Release {
+        pub typ: ReleaseType,
+        pub params: ReleaseParams,
+    }
+
+    impl Release {
+        pub fn docker_name_builder(&self, config: super::docker::name::Config) -> Box<dyn ToString> {
+            match self.typ {
+                ReleaseType::GAR => Box::new(super::docker::name::GoogleArtifactRegistry(config)),
+                ReleaseType::GHCR => Box::new(super::docker::name::GitHubContainerRegistry(config)),
+            }
+        }
+    }
+
+    pub struct Config {
+        pub app: String,
+        pub team: String,
+        pub release: Release,
+    }
+
+    #[derive(Debug, Clone, Error)]
+    pub enum Error {
+        #[error("missing configuration")]
+        MissingConfig,
+    }
+
+    impl Config {
+        /// Extract essential configuration from build.toml and nais.yaml.
+        pub fn new(cfg: &super::file::File, nais_yaml: NaisYaml) -> Result<Config, Error> {
+            let release = cfg.release.clone().ok_or(Error::MissingConfig)?;
+            let release_params = release.params_for_type();
+            Ok(Config {
+                app: nais_yaml.app,
+                team: cfg.team.clone().unwrap_or(nais_yaml.team),
+                release: Release {
+                    typ: release.typ,
+                    params: release_params,
+                },
+            })
+        }
+    }
+
+}
+
+pub mod file {
+    /// Contains structures for parsing the nb.toml configuration file.
+
+    use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+    use thiserror::Error;
+    use crate::config::file::Error::{ParseConfig, ReadConfig, Serialization};
+    use crate::config::runtime::{BranchRule, ReleaseParams, ReleaseType, Sdk};
+
+    /// Built-in default configuration.
+    pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");
+
+    #[derive(Debug, Error)]
+    pub enum Error {
+        #[error(r#"read "{filename}": {err}"#)]
+        ReadConfig {
+            err: std::io::Error,
+            filename: String,
+        },
+
+        #[error(r#"parse "{filename}": {err}"#)]
+        ParseConfig {
+            err: toml::de::Error,
+            filename: String,
+        },
+
+        #[error("{0}")]
+        Serialization(toml::de::Error),
+    }
+
+    /// A nb.toml file.
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct File {
+        pub description: Option<String>,
+        pub team: Option<String>,
+        #[serde(default = "HashMap::new")]
+        pub branch: HashMap<String, BranchRule>,
+        pub sdk: Option<Sdk>,
+        pub release: Option<Release>,
+    }
+
+    impl Default for File {
+        fn default() -> Self {
+            // The default config is compiled into the program, so
+            // make sure to test default() to catch panics compile-time.
+            toml::from_str(DEFAULT_CONFIG).unwrap()
+        }
+    }
+
+    impl File {
+        pub fn default_with_user_config_file(filename: &str) -> Result<Self, Error> {
+            let config_string = std::fs::read_to_string(filename)
+                .map_err(|err| { ReadConfig { err, filename: filename.to_string() } })?;
+
+            if let Err(err) = toml::from_str::<File>(&config_string) {
+                return Err(ParseConfig { err, filename: filename.to_string() });
+            }
+
+            let merged_config_string = super::toml_merge::merge_files(&[
+                DEFAULT_CONFIG,
+                &config_string,
+            ])
+                .map_err(Serialization)?;
+
+            Ok(
+                toml::from_str::<File>(&merged_config_string)
+                    .map_err(|err| ParseConfig { err, filename: filename.to_string() })?
+            )
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct Release {
+        #[serde(rename = "type")]
+        pub typ: ReleaseType,
+        ghcr: ReleaseParams,
+        gar: ReleaseParams,
+    }
+
+    impl Release {
+        pub fn params_for_type(&self) -> ReleaseParams {
+            match self.typ {
+                ReleaseType::GAR => self.gar.clone(),
+                ReleaseType::GHCR => self.ghcr.clone(),
+            }
+        }
     }
 
     #[cfg(test)]

@@ -4,6 +4,7 @@ mod pipeline;
 mod sdk;
 mod oci;
 mod config;
+mod nais_yaml;
 
 use std::fmt::{Display, Formatter};
 

@@ -58,7 +58,7 @@ pub enum Error {
     Config(#[from] config::runtime::Error),
 
     #[error("docker tag could not be generated: {0}")]
-    DockerTag(#[from] config::docker::tag::Error),
+    DockerTag(#[from] docker::tag::Error),
 
     #[error("docker error: {0}")]
     Docker(#[from] docker::Error),
@@ -139,9 +139,9 @@ async fn run() -> Result<(), Error> {
     // FIXME: cfg.team might be an empty string
     info!("Team detected: {}", &cfg.team);
 
-    let mut docker_name_config = config::docker::name::Config {
+    let mut docker_name_config = docker::name::Config {
         registry: cfg.release.params.registry.clone(),
-        tag: config::docker::tag::generate(&args.source_directory)?,
+        tag: docker::tag::generate(&args.source_directory)?,
         team: cfg.team,
         app: cfg.app,
     };

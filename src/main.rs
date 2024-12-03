@@ -1,14 +1,13 @@
 /// NAIS Build
 use crate::Error::*;
 use clap::{Parser, Subcommand};
-use std::io::Write;
-use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
-use log::{debug, error, info};
+use log::{error, info};
 use sdk::DockerFileBuilder;
 use crate::nais_yaml::NaisYaml;
 
 mod config;
+mod docker;
 mod nais_yaml;
 mod sdk;
 
@@ -61,14 +60,8 @@ pub enum Error {
     #[error("docker tag could not be generated: {0}")]
     DockerTag(#[from] config::docker::tag::Error),
 
-    #[error("docker build failed with exit code {0}")]
-    DockerBuild(ExitStatus),
-
-    #[error("docker login failed with exit code {0}")]
-    DockerLogin(ExitStatus),
-
-    #[error("docker logout failed with exit code {0}")]
-    DockerLogout(ExitStatus),
+    #[error("docker error: {0}")]
+    Docker(#[from] docker::Error),
 
     #[error("detect nais.yaml: {0}")]
     DetectNaisYaml(#[from] nais_yaml::Error),
@@ -164,7 +157,7 @@ async fn run() -> Result<(), Error> {
         Commands::Build => {
             let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
             let sdk = init_sdk(&args.source_directory, &cfg_file)?;
-            build(sdk, &docker_image_name)?;
+            docker::build(sdk, &docker_image_name)?;
             Ok(())
         }
         Commands::Release { tag } => {
@@ -180,53 +173,16 @@ async fn run() -> Result<(), Error> {
             let token = get_gar_auth_token().await?;
             let token = token.strip_prefix("Bearer ").unwrap_or(&token).to_string();
 
-            docker_login(cfg.release.params.registry.clone(), token)?;
+            docker::login(cfg.release.params.registry.clone(), token)?;
 
             // TODO: push to gar and/or ghcr
 
-            docker_logout(cfg.release.params.registry.clone())?;
+            docker::logout(cfg.release.params.registry.clone())?;
             Ok(())
         }
     }
 }
 
-fn docker_login(registry: String, token: String) -> Result<(), Error> {
-    debug!("Logging in to Docker registry {}", registry);
-    let mut child = std::process::Command::new("docker")
-        .arg("login")
-        .arg(registry)
-        .arg("--username")
-        .arg("oauth2accesstoken") // TODO: this only works for GAR
-        .arg("--password-stdin")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()?;
-
-    child.stdin.as_mut().unwrap().write_all(token.as_bytes())?;
-    let status = child.wait_with_output()?.status;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(DockerLogin(status))
-    }
-}
-
-fn docker_logout(registry: String) -> Result<(), Error> {
-    std::process::Command::new("docker")
-        .arg("logout")
-        .arg(registry)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map(|exit_status| {
-            if exit_status.success() {
-                Ok(())
-            } else {
-                Err(DockerLogout(exit_status))
-            }
-        })?
-}
 
 async fn get_gar_auth_token() -> Result<String, Error> {
     use google_cloud_auth::{project::Config, token::DefaultTokenSourceProvider};
@@ -244,29 +200,6 @@ async fn get_gar_auth_token() -> Result<String, Error> {
     let ts = tsp.token_source();
     let token = ts.token().await.map_err(GoogleCloudAuthTokenError)?;
     Ok(token)
-}
-
-fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(), Error> {
-    let mut file = tempfile::NamedTempFile::new()?;
-    file.write_all(docker_file_builder.dockerfile()?.as_bytes())?;
-
-    std::process::Command::new("docker")
-        .arg("build")
-        .arg("--file")
-        .arg(file.path())
-        .arg("--tag")
-        .arg(tag)
-        .arg(docker_file_builder.filesystem_path())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map(|exit_status| {
-            if exit_status.success() {
-                Ok(())
-            } else {
-                Err(DockerBuild(exit_status))
-            }
-        })?
 }
 
 fn init_sdk(

@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
+mod config;
+mod docker;
+mod nais_yaml;
+mod oci;
 mod pipeline;
 mod sdk;
-mod oci;
-mod config;
-mod nais_yaml;
 
 use std::fmt::{Display, Formatter};
 

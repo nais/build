@@ -7,7 +7,7 @@
 #
 
 description = "Default configuration file"
-team = ""  # default = auto-detect from nais.yaml
+#team = ""  # FIXME: default = auto-detect from nais.yaml
 
 #
 # Branch deploy rules.

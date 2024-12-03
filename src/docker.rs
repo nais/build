@@ -4,7 +4,7 @@ use log::debug;
 use thiserror::Error;
 use crate::docker::Error::IOError;
 use crate::sdk;
-use crate::sdk::DockerFileBuilder;
+use crate::sdk::SDK;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -138,7 +138,7 @@ pub mod tag {
     }
 }
 
-pub fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Result<(), Error> {
+pub fn build(docker_file_builder: &Box<dyn SDK>, tag: &str) -> Result<(), Error> {
     let mut file = tempfile::NamedTempFile::new()?;
     file.write_all(docker_file_builder.dockerfile().map_err(Error::Generate)?.as_bytes())?;
 
@@ -161,7 +161,7 @@ pub fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Resu
         })?
 }
 
-pub fn login(registry: String, token: String) -> Result<(), Error> {
+pub fn login(registry: &str, token: &str) -> Result<(), Error> {
     debug!("Logging in to Docker registry {}", registry);
     let mut child = std::process::Command::new("docker")
         .arg("login")
@@ -183,7 +183,7 @@ pub fn login(registry: String, token: String) -> Result<(), Error> {
     }
 }
 
-pub fn logout(registry: String) -> Result<(), Error> {
+pub fn logout(registry: &str) -> Result<(), Error> {
     std::process::Command::new("docker")
         .arg("logout")
         .arg(registry)
@@ -199,7 +199,7 @@ pub fn logout(registry: String) -> Result<(), Error> {
         })?
 }
 
-pub fn push(image_name: String) -> Result<(), Error> {
+pub fn push(image_name: &str) -> Result<(), Error> {
     debug!("Pushing image {}", image_name);
     std::process::Command::new("docker")
         .arg("push")

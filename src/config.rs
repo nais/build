@@ -169,8 +169,11 @@ pub mod runtime {
     }
 
     impl Config {
-        /// Extract essential configuration from build.toml and nais.yaml.
-        pub fn new(cfg: &super::file::File, nais_yaml: NaisYaml) -> Result<Config, Error> {
+        /// Extract essential configuration from many sources, including build.toml and nais.yaml.
+        pub fn new(
+            cfg: &super::file::File,
+            nais_yaml: NaisYaml,
+        ) -> Result<Config, Error> {
             let release = cfg.release.clone().ok_or(Error::MissingConfig)?;
             let release_params = release.params_for_type();
             Ok(Config {
@@ -282,8 +285,10 @@ pub mod file {
         #[test]
         pub fn load_default_configuration() {
             let cfg = File::default();
+            let release = cfg.release.unwrap();
             assert_eq!(cfg.description, Some("Default configuration file".into()));
-            assert_eq!(cfg.release.unwrap().typ, GAR);
+            assert_eq!(release.typ, GAR);
+            assert!(release.gar.registry.len() > 0);
         }
     }
 }

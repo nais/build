@@ -19,7 +19,7 @@ pub enum Error {
 }
 
 /// SDK is anything that can produce artifacts
-pub trait DockerFileBuilder {
+pub trait SDK {
     fn builder_docker_image(&self) -> String;
     fn runtime_docker_image(&self) -> String;
     fn detect_build_targets(&self) -> Result<Vec<String>, DetectBuildTargetError>;
@@ -30,7 +30,7 @@ pub trait DockerFileBuilder {
 /// Build Go projects.
 pub mod golang {
     use super::DetectBuildTargetError;
-    use super::DockerFileBuilder;
+    use super::SDK;
     use super::Error;
     use log::debug;
 
@@ -59,7 +59,7 @@ pub mod golang {
         Ok(Some(Golang(cfg)))
     }
 
-    impl DockerFileBuilder for Golang {
+    impl SDK for Golang {
         fn builder_docker_image(&self) -> String {
             self.0.docker_builder_image.clone()
         }
@@ -173,7 +173,7 @@ WORKDIR /app
 /// Build Java and Kotlin applications using Gradle.
 pub mod gradle {
     use super::DetectBuildTargetError;
-    use super::DockerFileBuilder;
+    use super::SDK;
     use super::Error;
     use log::debug;
 
@@ -203,7 +203,7 @@ pub mod gradle {
         Ok(Some(Gradle(cfg)))
     }
 
-    impl DockerFileBuilder for Gradle {
+    impl SDK for Gradle {
         fn builder_docker_image(&self) -> String {
             self.0.docker_builder_image.clone()
         }
@@ -289,7 +289,7 @@ CMD ["java", "-jar", "/app/app.jar"]
 /// Build Java and Kotlin applications using Maven.
 pub mod maven {
     use super::DetectBuildTargetError;
-    use super::DockerFileBuilder;
+    use super::SDK;
     use super::Error;
     use log::debug;
     use sxd_xpath::Value;
@@ -455,7 +455,7 @@ pub mod maven {
         assert_eq!(strval, vec!["apps", "libs", "test-doubles"]);
     }
 
-    impl DockerFileBuilder for Maven {
+    impl SDK for Maven {
         fn builder_docker_image(&self) -> String {
             self.0.docker_builder_image.clone()
         }

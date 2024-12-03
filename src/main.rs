@@ -3,15 +3,17 @@ use crate::Error::*;
 use clap::{Parser, Subcommand};
 use thiserror::Error;
 use log::{debug, error, info};
-use sdk::DockerFileBuilder;
+use sdk::SDK;
 use crate::nais_yaml::NaisYaml;
 
 mod config;
 mod docker;
 mod nais_yaml;
 mod sdk;
+mod deploy;
+mod google;
 
-/// NAISly build, test, lint, check and deploy your application.
+/// Naisly build, test, release and deploy your application.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -19,7 +21,12 @@ struct Cli {
     #[arg(default_value = ".")]
     source_directory: String,
 
-    /// Path to the NAIS build configuration file.
+    /// Override the resulting Docker image name and tag.
+    /// Using this option together with `release` or `deploy` will omit the build step.
+    #[arg(long)]
+    docker_image_name: Option<String>,
+
+    /// Path to the Nais build configuration file.
     // ... TODO: or nais.toml?
     #[arg(long)]
     config: Option<String>,
@@ -35,12 +42,9 @@ enum Commands {
     /// Build your project, resulting in a Docker image. Implies the `dockerfile` command.
     Build,
     /// Release this project's verified Docker image onto GAR or GHCR.
-    Release {
-        /// Use a tag from a Docker image that is already built and exists on the system.
-        /// Omitting this flag implies the `build` command.
-        #[arg(long)]
-        tag: Option<String>,
-    },
+    Release,
+    /// Deploy `nais.yaml` and the newly built Docker image to a Nais cluster.
+    Deploy,
 }
 
 #[derive(Error, Debug)]
@@ -51,11 +55,17 @@ pub enum Error {
     #[error("filesystem error: {0}")]
     FilesystemError(#[from] std::io::Error),
 
+    #[error("configuration is incomplete")]
+    ConfigIncomplete,
+
     #[error("configuration file: {0}")]
     ConfigParse(#[from] config::file::Error),
 
     #[error("configuration: {0}")]
     Config(#[from] config::runtime::Error),
+
+    #[error("deploy: {0}")]
+    Deploy(#[from] deploy::Error),
 
     #[error("docker tag could not be generated: {0}")]
     DockerTag(#[from] docker::tag::Error),
@@ -66,14 +76,11 @@ pub enum Error {
     #[error("detect nais.yaml: {0}")]
     DetectNaisYaml(#[from] nais_yaml::Error),
 
+    #[error("google: {0}")]
+    Google(#[from] google::Error),
+
     #[error("build error: {0}")]
     SDKError(#[from] sdk::Error),
-
-    #[error("google cloud auth error: {0}")]
-    GoogleCloudAuthError(#[from] google_cloud_auth::error::Error),
-
-    #[error("google cloud auth token error {0}")]
-    GoogleCloudAuthTokenError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Read configuration file from disk and merge it with the
@@ -120,6 +127,19 @@ async fn main() {
     }
 }
 
+async fn release(registry: &str, docker_image_name: &str) -> Result<(), Error> {
+    // TODO: auth to ghcr
+    // FIXME: determine if the correct user is authed (@nais.io vs @tenant)
+
+    let token = google::get_gar_auth_token().await?;
+
+    docker::login(registry, &token)?;
+    docker::push(docker_image_name)?;
+    docker::logout(registry)?;
+
+    Ok(())
+}
+
 async fn run() -> Result<(), Error> {
     env_logger::init();
 
@@ -139,75 +159,67 @@ async fn run() -> Result<(), Error> {
     // FIXME: cfg.team might be an empty string
     info!("Team detected: {}", &cfg.team);
 
+    let sdk = init_sdk(&args.source_directory, &cfg_file)?;
+
     let mut docker_name_config = docker::name::Config {
         registry: cfg.release.params.registry.clone(),
         tag: docker::tag::generate(&args.source_directory)?,
-        team: cfg.team,
-        app: cfg.app,
+        team: cfg.team.clone(),
+        app: cfg.app.clone(),
     };
+    if let Some(user_provided_tag) = &args.docker_image_name {
+        docker_name_config.tag = user_provided_tag.clone();
+        debug!("Docker tag overridden");
+    }
+    let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
 
     match args.command {
         Commands::Dockerfile => {
-            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
-            let sdk = init_sdk(&args.source_directory, &cfg_file)?;
             println!("{}\n", sdk.dockerfile()?);
             info!("Docker image tag: {}", docker_image_name);
-            Ok(())
         }
         Commands::Build => {
-            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
-            let sdk = init_sdk(&args.source_directory, &cfg_file)?;
-            docker::build(sdk, &docker_image_name)?;
-            Ok(())
+            docker::build(&sdk, &docker_image_name)?;
         }
-        Commands::Release { tag } => {
-            if let Some(tag) = &tag {
-                docker_name_config.tag = tag.clone()
+        Commands::Release => {
+            // Release implies build, unless docker tag is supplied
+            if args.docker_image_name.is_none() {
+                docker::build(&sdk, &docker_image_name)?;
             }
-            let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
-            info!("Docker image tag: {}", docker_image_name);
-
-            if tag.is_none() {
-                debug!("tag not supplied, building Docker image");
-                let sdk = init_sdk(&args.source_directory, &cfg_file)?;
-                docker::build(sdk, &docker_image_name)?;
+            release(&cfg.release.params.registry, &docker_image_name).await?;
+        }
+        Commands::Deploy { .. } => {
+            // Deploy implies build and release, unless docker tag is supplied
+            if args.docker_image_name.is_none() {
+                docker::build(&sdk, &docker_image_name)?;
+                release(&cfg.release.params.registry, &docker_image_name).await?;
             }
 
-            // TODO: auth to ghcr
-            let token = get_gar_auth_token().await?;
-            let token = token.strip_prefix("Bearer ").unwrap_or(&token).to_string();
+            // FIXME: populate these parameters
 
-            docker::login(cfg.release.params.registry.clone(), token)?;
-            docker::push(docker_image_name)?;
-            docker::logout(cfg.release.params.registry.clone())?;
-            Ok(())
+            deploy::deploy(deploy::Config{
+                apikey: "".to_string(),
+                cluster: "".to_string(),
+                deploy_server: "".to_string(),
+                environment: "".to_string(),
+                owner: "".to_string(),
+                git_ref: "".to_string(),
+                repository: "".to_string(),
+                resource: vec![],
+                var: vec![],
+                vars: "".to_string(),
+                wait: false,
+            })?;
         }
     }
-}
 
-
-async fn get_gar_auth_token() -> Result<String, Error> {
-    use google_cloud_auth::{project::Config, token::DefaultTokenSourceProvider};
-    use google_cloud_token::TokenSourceProvider as _;
-
-    let audience = "https://oauth2.googleapis.com/token/";
-    let scopes = [
-        "https://www.googleapis.com/auth/cloud-platform",
-    ];
-
-    let config = Config::default()
-        .with_audience(audience)
-        .with_scopes(&scopes);
-    let tsp = DefaultTokenSourceProvider::new(config).await.map_err(GoogleCloudAuthError)?;
-    let ts = tsp.token_source();
-    let token = ts.token().await.map_err(GoogleCloudAuthTokenError)?;
-    Ok(token)
+    Ok(())
 }
 
 fn init_sdk(
     filesystem_path: &str,
     cfg: &config::file::File,
-) -> Result<Box<dyn DockerFileBuilder>, Error> {
+) -> Result<Box<dyn SDK>, Error> {
     let sdk = cfg.sdk.clone().unwrap();
 
     match sdk::golang::new(sdk::golang::Config {

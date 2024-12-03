@@ -6,6 +6,8 @@ mod nais_yaml;
 mod oci;
 mod pipeline;
 mod sdk;
+mod deploy;
+mod google;
 
 use std::fmt::{Display, Formatter};
 

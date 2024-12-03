@@ -169,14 +169,12 @@ async fn run() -> Result<(), Error> {
 
             // TODO: build if not already built
 
-            // TODO: auth to gar and/or ghcr
+            // TODO: auth to ghcr
             let token = get_gar_auth_token().await?;
             let token = token.strip_prefix("Bearer ").unwrap_or(&token).to_string();
 
             docker::login(cfg.release.params.registry.clone(), token)?;
-
-            // TODO: push to gar and/or ghcr
-
+            docker::push(docker_image_name)?;
             docker::logout(cfg.release.params.registry.clone())?;
             Ok(())
         }

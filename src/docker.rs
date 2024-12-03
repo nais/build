@@ -161,8 +161,6 @@ pub fn build(docker_file_builder: Box<dyn DockerFileBuilder>, tag: &str) -> Resu
         })?
 }
 
-
-
 pub fn login(registry: String, token: String) -> Result<(), Error> {
     debug!("Logging in to Docker registry {}", registry);
     let mut child = std::process::Command::new("docker")

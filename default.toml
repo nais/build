@@ -16,20 +16,20 @@ description = "Default configuration file"
 # The default is to always build and test, but not deploy.
 [branch.".*"]
 output = "build"  # or "release" if you want to test images, or "deploy"
-deploy.environments = []
+deploy.profiles = ["default"]
 
 # For main or master, we do a build, release and deploy.
 # Deploys will be done sequentially to dev-gcp and prod-gcp.
 [branch."^(main|master)$"]
 output = "deploy"
-deploy.environments = ["dev-gcp", "prod-gcp"]
 deploy.parallel = false
+deploy.profiles = ["prod-gcp", "default"]
 
 [branch."^feature-preview-(.+)$"]
 output = "deploy"
-deploy.environments = ["dev-gcp"]
 deploy.prefix = "$1"
 deploy.parallel = false
+deploy.profiles = ["dev-gcp"]
 
 #
 # SDK definitions.
@@ -103,3 +103,17 @@ type = "nais"
 [deploy.nais]
 tenant = "nav"
 nais_yaml = ""  # blank value means to auto-detect from file system
+
+[[deploy.nais.profiles.default]]
+clusters = ["dev-gcp", "prod-gcp"]
+nais_yaml = [".nais/nais.yml"]
+
+[[deploy.nais.profiles.dev-gcp]]
+clusters = ["dev-gcp"]
+nais_yaml = [".nais/nais.yml"]
+nais_var_files = [".nais/dev-gcp.yml"]
+
+[[deploy.nais.profiles.prod-gcp]]
+clusters = ["prod-gcp"]
+nais_yaml = [".nais/nais.yml"]
+nais_var_files = [".nais/prod-gcp.yml"]

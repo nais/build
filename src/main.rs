@@ -45,7 +45,10 @@ enum Commands {
     /// Release this project's verified Docker image onto GAR or GHCR.
     Release,
     /// Deploy `nais.yaml` and the newly built Docker image to a Nais cluster.
-    Deploy,
+    Deploy {
+        #[arg(long)]
+        cluster: String
+    },
 }
 
 #[derive(Error, Debug)]
@@ -189,7 +192,7 @@ async fn run() -> Result<(), Error> {
             }
             release(&cfg.release.params.registry, &docker_image_name).await?;
         }
-        Commands::Deploy { .. } => {
+        Commands::Deploy { cluster } => {
             let short_sha = git::short_sha(&args.source_directory)?;
             let git_meta = git::metadata(&args.source_directory)?;
 
@@ -199,21 +202,16 @@ async fn run() -> Result<(), Error> {
                 release(&cfg.release.params.registry, &docker_image_name).await?;
             }
 
-            // FIXME: populate these parameters
+            // FIXME: this should probably be a builder of some sort to validate the actual config
+            let mut cfg= deploy::Config::try_new_from_env().ok_or(ConfigIncomplete)?;
+            cfg.cluster = cluster;
+            cfg.owner = git_meta.owner;
+            cfg.git_ref = short_sha.to_string();
+            cfg.repository = git_meta.name;
+            cfg.resource = vec![nais_yaml_path.to_string()];
+            cfg.var = vec![format!("image={docker_image_name}")];
 
-            deploy::deploy(deploy::Config{
-                apikey: "".to_string(),
-                cluster: "".to_string(),
-                deploy_server: "".to_string(),
-                environment: "".to_string(),
-                owner: git_meta.owner,
-                git_ref: short_sha.to_string(),
-                repository: git_meta.name,
-                resource: vec![],
-                var: vec![],
-                vars: "".to_string(),
-                wait: true,
-            })?;
+            deploy::deploy(cfg)?;
         }
     }
 

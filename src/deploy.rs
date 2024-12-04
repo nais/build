@@ -2,11 +2,11 @@ use std::process::{ExitStatus, Stdio};
 use thiserror::Error;
 
 /// All field names corresponds with deploy client names
+#[derive(Default, Debug, Clone)]
 pub struct Config {
     pub apikey: String,
     pub cluster: String,
     pub deploy_server: String,
-    pub environment: String,
     pub owner: String,
     /// Except `git_ref`, which is `--ref`
     pub git_ref: String,
@@ -26,6 +26,17 @@ pub enum Error {
     IOError(#[from] std::io::Error),
 }
 
+impl Config {
+    pub fn try_new_from_env() -> Option<Self> {
+        Some(Config {
+            apikey: std::env::var("NAIS_DEPLOY_APIKEY").ok()?,
+            deploy_server: std::env::var("NAIS_DEPLOY_SERVER").ok()?,
+            wait: true,
+            ..Default::default()
+        })
+    }
+}
+
 pub fn deploy(cfg: Config) -> Result<(), Error> {
     let mut process = std::process::Command::new("deploy");
 
@@ -40,7 +51,6 @@ pub fn deploy(cfg: Config) -> Result<(), Error> {
         .arg("--apikey").arg(cfg.apikey)
         .arg("--cluster").arg(cfg.cluster)
         .arg("--deploy-server").arg(cfg.deploy_server)
-        .arg("--environment").arg(cfg.environment)
         .arg("--owner").arg(cfg.owner)
         .arg("--ref").arg(cfg.git_ref)
         .arg("--repository").arg(cfg.repository)

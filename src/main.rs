@@ -12,6 +12,7 @@ mod nais_yaml;
 mod sdk;
 mod deploy;
 mod google;
+mod git;
 
 /// Naisly build, test, release and deploy your application.
 #[derive(Parser, Debug)]
@@ -189,6 +190,9 @@ async fn run() -> Result<(), Error> {
             release(&cfg.release.params.registry, &docker_image_name).await?;
         }
         Commands::Deploy { .. } => {
+            let short_sha = git::short_sha(&args.source_directory)?;
+            let git_meta = git::metadata(&args.source_directory)?;
+
             // Deploy implies build and release, unless docker tag is supplied
             if args.docker_image_name.is_none() {
                 docker::build(&sdk, &docker_image_name)?;
@@ -202,13 +206,13 @@ async fn run() -> Result<(), Error> {
                 cluster: "".to_string(),
                 deploy_server: "".to_string(),
                 environment: "".to_string(),
-                owner: "".to_string(),
-                git_ref: "".to_string(),
-                repository: "".to_string(),
+                owner: git_meta.owner,
+                git_ref: short_sha.to_string(),
+                repository: git_meta.name,
                 resource: vec![],
                 var: vec![],
                 vars: "".to_string(),
-                wait: false,
+                wait: true,
             })?;
         }
     }

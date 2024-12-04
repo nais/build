@@ -8,6 +8,7 @@ mod pipeline;
 mod sdk;
 mod deploy;
 mod google;
+mod git;
 
 use std::fmt::{Display, Formatter};
 

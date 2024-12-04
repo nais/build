@@ -87,17 +87,7 @@ pub mod name {
 
 /// Specifies how to format Docker image tags.
 pub mod tag {
-    use thiserror::Error;
-    use Error::*;
-
-    #[derive(Debug, Error)]
-    pub enum Error {
-        #[error("failed to execute Git: {0}")]
-        FailedExecute(#[from] std::io::Error),
-
-        #[error("failed to parse Git short SHA: {0}")]
-        ParseGitShortSha(#[from] std::string::FromUtf8Error),
-    }
+    pub type Error = crate::git::Error;
 
     /// Generate a Docker tag with the current timestamp and the currently checked out Git short SHA sum.
     ///
@@ -110,31 +100,8 @@ pub mod tag {
     pub fn generate(filesystem_path: &str) -> Result<String, Error> {
         let now = chrono::Local::now();
         let datetime = now.format("%Y%m%d.%H%M%S").to_string();
-
-        let git_tree_dirty = std::process::Command::new("git")
-            .arg("ls-files")
-            .arg("--exclude-standard")
-            .arg("--others")
-            .current_dir(filesystem_path)
-            .output()
-            .map(|output| output.stdout.len() > 0)
-            .map_err(FailedExecute)?;
-
-        let git_short_sha = std::process::Command::new("git")
-            .arg("rev-parse")
-            .arg("--short").arg("HEAD")
-            .current_dir(filesystem_path)
-            .output()
-            .map(|output| String::from_utf8(output.stdout))
-            .map_err(FailedExecute)?
-            .map_err(ParseGitShortSha)
-            .map(|short_sha| short_sha.trim().to_string())
-            ?;
-
-        Ok(match git_tree_dirty {
-            true => format!("{datetime}.{git_short_sha}-dirty"),
-            false => format!("{datetime}.{git_short_sha}"),
-        })
+        let git_short_sha = crate::git::short_sha(filesystem_path)?;
+        Ok(format!("{datetime}.{git_short_sha}"))
     }
 }
 

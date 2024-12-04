@@ -34,6 +34,12 @@ fn walk_dir(filesystem_path: &str) -> Result<Vec<DirEntry>, std::io::Error> {
 // ^\.nais/(dev|prod)(-(fss|gcp))?\.ya?ml
 /// Returns the path of the first and best detected nais.yaml
 pub fn detect_nais_yaml(filesystem_path: &str) -> Result<String, Error> {
+    // TODO: should be a well-known structure for resources and optionally variables
+    // - .nais
+    //    - <cluster>
+    //      - resource.(y(a?)ml)          # multi-document yaml
+    //      - vars.(y(a?)ml) | vars.json  # single-document yaml or json
+
     let root_dir_files = walk_dir(filesystem_path)?;
     let nais_files = walk_dir(&format!("{}/.nais", filesystem_path)).unwrap_or_default();
     let candidates = vec![

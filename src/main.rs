@@ -38,6 +38,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Detect and print configuration.
+    Preflight,
     /// Detect build parameters, generate a Dockerfile for your project, and print it to standard output.
     Dockerfile,
     /// Build your project, resulting in a Docker image. Implies the `dockerfile` command.
@@ -178,6 +180,9 @@ async fn run() -> Result<(), Error> {
     let docker_image_name = cfg.release.docker_name_builder(docker_name_config).to_string();
 
     match args.command {
+        Commands::Preflight => {
+            google::token().await?;
+        }
         Commands::Dockerfile => {
             println!("{}\n", sdk.dockerfile()?);
             info!("Docker image tag: {}", docker_image_name);

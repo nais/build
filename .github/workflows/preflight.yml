@@ -4,6 +4,7 @@ on: [push]
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_LOG: debug
 
 jobs:
   build:
@@ -12,4 +13,4 @@ jobs:
       contents: read
       id-token: write
     steps:
-    - uses: nais/build/actions/build@v1
+    - uses: nais/build/actions/build@master

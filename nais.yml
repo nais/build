@@ -1,0 +1,6 @@
+---
+kind: Application
+apiVersion: nais.io/v1alpha1
+metadata:
+  name: build
+  namespace: nais

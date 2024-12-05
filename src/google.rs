@@ -1,4 +1,5 @@
 use std::time::Duration;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -27,6 +28,8 @@ pub async fn token() -> Result<String, Error> {
 }
 
 pub async fn get_gar_auth_token() -> Result<String, Error> {
+    debug!("Exchanging Google credential file for an oauth2 token");
+
     use google_cloud_auth::{project::Config, token::DefaultTokenSourceProvider};
     use google_cloud_token::TokenSourceProvider as _;
 
@@ -67,6 +70,7 @@ pub struct TokenExchangeResponse {
 }
 
 pub async fn exchange_federated_token(workload_identity_pool: &str, github_jwt: &str) -> Result<TokenExchangeResponse, Error> {
+    debug!("Exchanging federated GitHub token for an oauth2 token");
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()?;

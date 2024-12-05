@@ -1,0 +1,82 @@
+@startuml
+
+
+
+abstract namespace
+abstract registry
+abstract git_sha
+abstract app_name
+abstract docker_image_name
+abstract project_path
+abstract build_target
+abstract build_tool
+abstract runtime_cmd
+
+abstract nais_yaml_file
+abstract nais_yaml_vars_file
+
+abstract build_target
+abstract build_image
+abstract runtime_image
+
+enum envvars
+enum disk
+enum build_toml
+enum command_line
+
+stereotype deploy_apikey
+stereotype gcloud_credentials
+stereotype gcloud_docker_token
+stereotype github_token
+stereotype deploy_token
+
+protocol dockerfile
+protocol build
+protocol release
+protocol deploy
+
+skinparam linetype ortho
+
+envvars --> deploy_apikey
+envvars --> github_token
+
+disk --> gcloud_credentials
+disk --> nais_yaml_file
+disk --> nais_yaml_vars_file
+
+command_line --> project_path
+
+build_toml --> build_image
+build_toml --> runtime_image
+
+github_token --> deploy_token
+gcloud_credentials --> gcloud_docker_token
+
+project_path --> dockerfile
+build_target --> dockerfile
+build_tool --> dockerfile
+runtime_image --> dockerfile
+build_image --> dockerfile
+runtime_cmd --> dockerfile
+
+project_path --> build
+dockerfile --> build
+
+nais_yaml_file --> app_name
+nais_yaml_file --> namespace
+
+app_name --> docker_image_name
+namespace --> docker_image_name
+registry --> docker_image_name
+git_sha --> docker_image_name
+
+docker_image_name --> release
+build --> release
+gcloud_docker_token --> release
+
+deploy_apikey --> deploy
+deploy_token --> deploy
+nais_yaml_vars_file --> deploy
+release --> deploy
+
+@enduml

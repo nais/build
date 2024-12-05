@@ -6,6 +6,8 @@ tailored for developers on the NAIS platform.
 ## Features
 * Generates best-practice Dockerfiles for standardized Go and Gradle projects.
 * Builds Docker images with correct repository, namespace, team and date-based tag.
+* Publish built artifacts to Google Artifact Registry.
+* Deploys the built image using Nais deploy.
 * No Dockerfile needed, _nb_ will generate one for you.
 * Build target detection with zero configuration.
 * Uses the latest build and runtime environments.
@@ -15,8 +17,11 @@ tailored for developers on the NAIS platform.
 ## Roadmap
 * Support for many kinds of Go, Rust, Java, and Kotlin projects.
 * Build, test, lint, and auditing using best practices.
-* Publish built artifacts to Google Artifact Registry, GHCR, and GitHub releases.
-* Deploy artifacts to Kubernetes using NAIS deploy, or upload to CDN.
+* SBOM generation and signature.
+* Publish built artifacts also to GHCR and GitHub releases.
+* Intermediate build step caching.
+* Deploy artifacts to CDN.
+* Deploy profiles.
 * Matrix builds.
 
 ## Design goals

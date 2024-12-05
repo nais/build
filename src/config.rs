@@ -224,8 +224,8 @@ pub mod file {
     pub struct File {
         pub description: Option<String>,
         pub team: Option<String>,
-        #[serde(default = "HashMap::new")]
-        pub branch: HashMap<String, BranchRule>,
+        //#[serde(default = "HashMap::new")]
+        //pub branch: HashMap<String, BranchRule>,
         pub sdk: Option<Sdk>,
         pub release: Option<Release>,
     }

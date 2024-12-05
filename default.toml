@@ -22,8 +22,7 @@ deploy.profiles = ["default"]
 # Deploys will be done sequentially to dev-gcp and prod-gcp.
 [branch."^(main|master)$"]
 output = "deploy"
-deploy.parallel = false
-deploy.profiles = ["prod-gcp", "default"]
+deploy.profiles = ["default"]
 
 [branch."^feature-preview-(.+)$"]
 output = "deploy"
@@ -104,16 +103,27 @@ type = "nais"
 tenant = "nav"
 nais_yaml = ""  # blank value means to auto-detect from file system
 
-[[deploy.nais.profiles.default]]
+[deploy.nais.profiles.default]
 clusters = ["dev-gcp", "prod-gcp"]
 nais_yaml = [".nais/nais.yml"]
+nais_var_files = [".nais/vars.yml"]
+parallell = true
 
-[[deploy.nais.profiles.dev-gcp]]
+[deploy.nais.profiles.dev-gcp]
 clusters = ["dev-gcp"]
 nais_yaml = [".nais/nais.yml"]
 nais_var_files = [".nais/dev-gcp.yml"]
+parallell = true
 
-[[deploy.nais.profiles.prod-gcp]]
+[deploy.nais.profiles.prod-gcp]
 clusters = ["prod-gcp"]
 nais_yaml = [".nais/nais.yml"]
 nais_var_files = [".nais/prod-gcp.yml"]
+parallell = true
+
+# example
+#[deploy.nais.profiles.tbd]
+#clusters = ["dev-gcp", "prod-gcp"]
+#nais_yaml = [".nais/app.yml", ".nais/topic.yml", ".nais/acl.yml"]
+#nais_var_files = [".nais/vars.yml", ".nais/foo.yml"]
+#parallell = false

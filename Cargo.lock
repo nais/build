@@ -102,6 +102,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-waker"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -414,6 +420,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
 
 [[package]]
+name = "futures-sink"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
+
+[[package]]
 name = "futures-task"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -509,6 +521,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccae279728d634d083c00f6099cb58f01cc99c145b84b8be2f6c74618d79922e"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "indexmap",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -599,6 +630,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "httparse",
@@ -969,6 +1001,7 @@ dependencies = [
  "google-cloud-auth",
  "google-cloud-token",
  "log",
+ "reqwest",
  "serde",
  "serde-inline-default",
  "serde_yaml",
@@ -1318,6 +1351,7 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "http-body-util",
@@ -1341,6 +1375,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sync_wrapper",
+ "system-configuration",
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
@@ -1685,6 +1720,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "system-configuration"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c879d448e9d986b661742763247d3693ed13609438cf3d006f51f5368a5ba6b"
+dependencies = [
+ "bitflags",
+ "core-foundation",
+ "system-configuration-sys",
+]
+
+[[package]]
+name = "system-configuration-sys"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1819,6 +1875,19 @@ checksum = "0c7bc40d0e5a97695bb96e27995cd3a08538541b0a846f65bba7a359f36700d4"
 dependencies = [
  "rustls",
  "rustls-pki-types",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61e7c3654c13bcd040d4a03abee2c75b1d14a37b423cf5a813ceae1cc903ec6a"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project-lite",
  "tokio",
 ]
 

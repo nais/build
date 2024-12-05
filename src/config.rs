@@ -193,10 +193,9 @@ pub mod file {
     /// Contains structures for parsing the nb.toml configuration file.
 
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
     use thiserror::Error;
     use crate::config::file::Error::{ParseConfig, ReadConfig, Serialization};
-    use crate::config::runtime::{BranchRule, ReleaseParams, ReleaseType, Sdk};
+    use crate::config::runtime::{ReleaseParams, ReleaseType, Sdk};
 
     /// Built-in default configuration.
     pub const DEFAULT_CONFIG: &str = include_str!("../default.toml");

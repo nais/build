@@ -135,7 +135,7 @@ async fn release(registry: &str, docker_image_name: &str) -> Result<(), Error> {
     // TODO: auth to ghcr
     // FIXME: determine if the correct user is authed (@nais.io vs @tenant)
 
-    let token = google::get_gar_auth_token().await?;
+    let token = google::token().await?;
 
     // Sessions are automatically logged out when they go out of scope
     let session = docker::Session::new(registry, &token)?;

@@ -1,6 +1,6 @@
 use std::io::Write;
 use std::process::{ExitStatus, Stdio};
-use log::debug;
+use log::{debug, error};
 use thiserror::Error;
 use crate::docker::Error::IOError;
 use crate::sdk;
@@ -105,6 +105,7 @@ pub mod tag {
     }
 }
 
+/// Build a Docker image and tag it using the provided tag.
 pub fn build(docker_file_builder: &Box<dyn SDK>, tag: &str) -> Result<(), Error> {
     let mut file = tempfile::NamedTempFile::new()?;
     file.write_all(docker_file_builder.dockerfile().map_err(Error::Generate)?.as_bytes())?;
@@ -128,57 +129,82 @@ pub fn build(docker_file_builder: &Box<dyn SDK>, tag: &str) -> Result<(), Error>
         })?
 }
 
-pub fn login(registry: &str, token: &str) -> Result<(), Error> {
-    debug!("Logging in to Docker registry {}", registry);
-    let mut child = std::process::Command::new("docker")
-        .arg("login")
-        .arg(registry)
-        .arg("--username")
-        .arg("oauth2accesstoken") // TODO: this only works for GAR
-        .arg("--password-stdin")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn().map_err(IOError)?;
+/// Docker sessions are used for uploading artifacts to a Docker registry.
+/// Sessions are created by logging into a registry.
+pub struct Session {
+    registry: String,
+}
 
-    child.stdin.as_mut().unwrap().write_all(token.as_bytes())?;
-    let status = child.wait_with_output()?.status;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(Error::Login(status))
+impl Drop for Session {
+    fn drop(&mut self) {
+        if let Err(e) = self.logout() {
+            error!("failed to logout from Docker: {e}")
+        }
     }
 }
 
-pub fn logout(registry: &str) -> Result<(), Error> {
-    std::process::Command::new("docker")
-        .arg("logout")
-        .arg(registry)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map(|exit_status| {
-            if exit_status.success() {
-                Ok(())
-            } else {
-                Err(Error::Logout(exit_status))
-            }
-        })?
-}
+impl Session {
+    /// Log in to a Docker registry, retaining credentials in ~/.docker/config.json
+    /// for the lifetime of the returned Session object.
+    ///
+    /// FIXME: credential helpers seem to obstruct usage of this token
+    pub fn new(registry: &str, token: &str) -> Result<Self, Error> {
+        debug!("Logging in to Docker registry {}", registry);
+        let mut child = std::process::Command::new("docker")
+            .arg("login")
+            .arg(registry)
+            .arg("--username")
+            .arg("oauth2accesstoken") // TODO: this only works for GAR
+            .arg("--password-stdin")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn().map_err(IOError)?;
 
-pub fn push(image_name: &str) -> Result<(), Error> {
-    debug!("Pushing image {}", image_name);
-    std::process::Command::new("docker")
-        .arg("push")
-        .arg(image_name)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map(|exit_status| {
-            if exit_status.success() {
-                Ok(())
-            } else {
-                Err(Error::Push(exit_status))
-            }
-        })?
+        child.stdin.as_mut().unwrap().write_all(token.as_bytes())?;
+        let status = child.wait_with_output()?.status;
+        if status.success() {
+            Ok(Session { registry: registry.to_string() })
+        } else {
+            Err(Error::Login(status))
+        }
+    }
+
+    /// Remove credentials for this registry by running `docker logout`.
+    /// This function is called automatically when the `Session` object
+    /// goes out of scope.
+    pub fn logout(&self) -> Result<(), Error> {
+        debug!("Logging out of Docker registry {}", &self.registry);
+        std::process::Command::new("docker")
+            .arg("logout")
+            .arg(&self.registry)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .map(|exit_status| {
+                if exit_status.success() {
+                    Ok(())
+                } else {
+                    Err(Error::Logout(exit_status))
+                }
+            })?
+    }
+
+    /// Push a Docker image to the registry.
+    pub fn push(&self, image_name: &str) -> Result<(), Error> {
+        debug!("Pushing image: {}", image_name);
+        std::process::Command::new("docker")
+            .arg("push")
+            .arg(image_name)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .map(|exit_status| {
+                if exit_status.success() {
+                    Ok(())
+                } else {
+                    Err(Error::Push(exit_status))
+                }
+            })?
+    }
 }

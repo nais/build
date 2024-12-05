@@ -137,9 +137,9 @@ async fn release(registry: &str, docker_image_name: &str) -> Result<(), Error> {
 
     let token = google::get_gar_auth_token().await?;
 
-    docker::login(registry, &token)?;
-    docker::push(docker_image_name)?;
-    docker::logout(registry)?;
+    // Sessions are automatically logged out when they go out of scope
+    let session = docker::Session::new(registry, &token)?;
+    session.push(docker_image_name)?;
 
     Ok(())
 }

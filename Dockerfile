@@ -28,8 +28,9 @@ RUN \
 
 RUN file /build/target/final/release/nb
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:3
 WORKDIR /app
+RUN apk add --no-cache git
 COPY --from=builder /build/target/final/release/nb /app/nb
 CMD ["/app/nb", "preflight"]
 

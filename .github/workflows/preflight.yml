@@ -15,3 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./actions/build
+        env:
+          WORKLOAD_IDENTITY_POOL: "//iam.googleapis.com/${{ secrets.WORKLOAD_IDENTITY_POOL }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

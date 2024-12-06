@@ -1,4 +1,8 @@
 #!/bin/sh
 # vi: se et:
 
-/app/nb preflight
+if [ -z "${ACTION}" ]; then
+  /app/nb preflight
+else
+  /app/nb "${ACTION}"
+fi

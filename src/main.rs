@@ -181,7 +181,9 @@ async fn run() -> Result<(), Error> {
 
     match args.command {
         Commands::Preflight => {
+            info!("Preflight starting; attempting to acquire Google token...");
             auth::token().await?;
+            info!("Preflight completed successfully.");
         }
         Commands::Dockerfile => {
             println!("{}\n", sdk.dockerfile()?);

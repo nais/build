@@ -32,5 +32,5 @@ FROM alpine:3
 WORKDIR /app
 RUN apk add --no-cache git
 COPY --from=builder /build/target/final/release/nb /app/nb
-CMD ["/app/nb", "preflight"]
-
+COPY ./actions/build/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

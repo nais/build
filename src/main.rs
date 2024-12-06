@@ -11,7 +11,7 @@ mod docker;
 mod nais_yaml;
 mod sdk;
 mod deploy;
-mod google;
+mod auth;
 mod git;
 
 /// Naisly build, test, release and deploy your application.
@@ -83,7 +83,7 @@ pub enum Error {
     DetectNaisYaml(#[from] nais_yaml::Error),
 
     #[error("google: {0}")]
-    Google(#[from] google::Error),
+    Google(#[from] auth::Error),
 
     #[error("build error: {0}")]
     SDKError(#[from] sdk::Error),
@@ -137,7 +137,7 @@ async fn release(registry: &str, docker_image_name: &str) -> Result<(), Error> {
     // TODO: auth to ghcr
     // FIXME: determine if the correct user is authed (@nais.io vs @tenant)
 
-    let token = google::token().await?;
+    let token = auth::token().await?;
 
     // Sessions are automatically logged out when they go out of scope
     let session = docker::Session::new(registry, &token)?;
@@ -181,7 +181,7 @@ async fn run() -> Result<(), Error> {
 
     match args.command {
         Commands::Preflight => {
-            google::token().await?;
+            auth::token().await?;
         }
         Commands::Dockerfile => {
             println!("{}\n", sdk.dockerfile()?);

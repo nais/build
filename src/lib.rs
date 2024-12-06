@@ -7,7 +7,7 @@ mod oci;
 mod pipeline;
 mod sdk;
 mod deploy;
-mod google;
+mod auth;
 mod git;
 
 use std::fmt::{Display, Formatter};

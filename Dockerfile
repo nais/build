@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1 as builder
+FROM --platform=$BUILDPLATFORM rust:1 AS builder
 
 WORKDIR /build
 ARG TARGETPLATFORM
@@ -24,10 +24,12 @@ RUN \
         export CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc ; \
         export CXX_aarch64_unknown_linux_musl=aarch64-linux-gnu-g++ ; \
     fi ; \
-    cargo build --release --target ${TARGET} && mkdir -p target/final/release/ && mv target/${TARGET}/release/nb target/final/release/nb ; \
-    file target/final/release/nb
+    cargo build --release --target ${TARGET} && mkdir -p target/final/release/ && mv target/${TARGET}/release/nb target/final/release/nb ;
+
+RUN file /build/target/final/release/nb
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=builder /build/target/final/release/nb /app/nb
 CMD ["/app/nb"]
+

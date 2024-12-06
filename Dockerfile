@@ -7,5 +7,5 @@ RUN cargo build --release
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
-COPY --from=builder /build/target/release/nb /app/nb
-CMD ["/app/nb"]
+COPY --from=builder /target/release/nb /app/nb
+CMD ["/app/nb", "preflight"]

@@ -26,7 +26,7 @@ pub async fn token() -> Result<String, Error> {
     match (workload_identity_pool, github_id_token_url, github_token) {
         (Some(workload_identity_pool), Some(github_id_token_url), Some(github_token)) => {
             let id_token = github_id_token(&github_id_token_url, &github_token, &workload_identity_pool).await?;
-            exchange_federated_token(&workload_identity_pool, &id_token.access_token).await
+            exchange_federated_token(&workload_identity_pool, &id_token.value).await
                 .map(|token| token.access_token)
         }
         (_, _, _) => get_gar_auth_token().await
@@ -65,15 +65,16 @@ struct TokenExchangeRequest<'a> {
 }
 
 #[derive(Deserialize)]
-pub struct TokenResponse {
+pub struct TokenExchangeResponse {
     pub access_token: String,
-    #[allow(dead_code)]
-    pub token_type: String,
-    #[allow(dead_code)]
-    pub expires_in: usize,
 }
 
-pub async fn exchange_federated_token(workload_identity_pool: &str, github_id_token: &str) -> Result<TokenResponse, Error> {
+#[derive(Deserialize)]
+pub struct GitHubTokenResponse {
+    pub value: String,
+}
+
+pub async fn exchange_federated_token(workload_identity_pool: &str, github_id_token: &str) -> Result<TokenExchangeResponse, Error> {
     debug!("Exchanging federated GitHub token for an oauth2 token");
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
@@ -104,7 +105,7 @@ pub async fn exchange_federated_token(workload_identity_pool: &str, github_id_to
     }
 }
 
-pub async fn github_id_token(url: &str, bearer_token: &str, workload_identity_pool: &str) -> Result<TokenResponse, Error> {
+pub async fn github_id_token(url: &str, bearer_token: &str, workload_identity_pool: &str) -> Result<GitHubTokenResponse, Error> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()?;

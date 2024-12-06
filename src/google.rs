@@ -74,7 +74,7 @@ pub struct TokenExchangeResponse {
 
 pub async fn exchange_federated_token(workload_identity_pool: &str, github_jwt: &str) -> Result<TokenExchangeResponse, Error> {
     debug!("Exchanging federated GitHub token for an oauth2 token");
-    debug!(github_jwt);
+    debug!("{}", github_jwt);
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()?;

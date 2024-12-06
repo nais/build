@@ -3,4 +3,4 @@ description: 'Prototype only - do not use'
 author: '@nais'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: '../../Dockerfile'

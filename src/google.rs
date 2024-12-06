@@ -13,6 +13,9 @@ pub enum Error {
 
     #[error("reqwest: {0}")]
     Reqwest(#[from] reqwest::Error),
+
+    #[error("code: {0}, body: {1}")] // FIXME: REMOVE THIS YOU DUMB DUMBS
+    Deserialize(u16, String)
 }
 
 pub async fn token() -> Result<String, Error> {
@@ -82,11 +85,20 @@ pub async fn exchange_federated_token(workload_identity_pool: &str, github_jwt: 
         subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
         subject_token: github_jwt,
     };
-    Ok(client.post("https://sts.googleapis.com/v1/token")
+
+    let resp = client.post("https://sts.googleapis.com/v1/token")
         .json(&request)
         .send()
-        .await?
-        .json()
-        .await?
-    )
+        .await?;
+
+    let status = resp.status().as_u16();
+    let bytes = resp.bytes().await?;
+
+    match serde_json::from_slice(&bytes) {
+        Ok(token) => Ok(token),
+        Err(_) => {
+            let body = String::from_utf8_lossy(&bytes);
+            Err(Error::Deserialize(status, body.to_string()))
+        }
+    }
 }

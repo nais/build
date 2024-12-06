@@ -1,12 +1,33 @@
-FROM rust:1 as builder
+FROM --platform=$BUILDPLATFORM rust:1 as builder
+
 WORKDIR /build
-RUN apt-get --yes update && apt-get --yes install cmake musl-tools
+ARG TARGETPLATFORM
+RUN \
+    set -eux ; \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        apt-get --yes update && apt-get --yes install cmake musl-tools ; \
+        rustup target add x86_64-unknown-linux-musl ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        apt-get --yes update && apt-get --yes install cmake musl-tools gcc-aarch64-linux-gnu ; \
+        rustup target add aarch64-unknown-linux-musl ; \
+    fi
+
 COPY . .
 
-RUN rustup target add x86_64-unknown-linux-musl
-RUN cargo build --release --target x86_64-unknown-linux-musl --target-dir /output
+RUN \
+    set -eux ; \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        export TARGET=x86_64-unknown-linux-musl ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        export TARGET=aarch64-unknown-linux-musl ; \
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc ; \
+        export CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc ; \
+        export CXX_aarch64_unknown_linux_musl=aarch64-linux-gnu-g++ ; \
+    fi ; \
+    cargo build --release --target ${TARGET} && mkdir -p target/final/release/ && mv target/${TARGET}/release/nb target/final/release/nb ; \
+    file target/final/release/nb
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
-COPY --from=builder /output/x86_64-unknown-linux-musl/release/nb /app/nb
-CMD ["/app/nb", "preflight"]
+COPY --from=builder /build/target/final/release/nb /app/nb
+CMD ["/app/nb"]

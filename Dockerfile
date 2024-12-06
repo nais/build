@@ -31,5 +31,5 @@ RUN file /build/target/final/release/nb
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=builder /build/target/final/release/nb /app/nb
-CMD ["/app/nb"]
+CMD ["/app/nb", "preflight"]
 

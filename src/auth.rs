@@ -80,7 +80,7 @@ pub async fn exchange_federated_token(workload_identity_pool: &str, github_id_to
         .timeout(Duration::from_secs(3))
         .build()?;
     let request = TokenExchangeRequest {
-        audience: workload_identity_pool,
+        audience: &format!("//iam.googleapis.com/{workload_identity_pool}"),
         grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
         requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
         scope: "https://www.googleapis.com/auth/cloud-platform",
@@ -106,6 +106,7 @@ pub async fn exchange_federated_token(workload_identity_pool: &str, github_id_to
 }
 
 pub async fn github_id_token(url: &str, bearer_token: &str, workload_identity_pool: &str) -> Result<GitHubTokenResponse, Error> {
+    debug!("Getting GitHub actions id_token");
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()?;

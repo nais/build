@@ -15,7 +15,7 @@ tailored for developers on the NAIS platform.
 * It's very fast.
 
 ## Roadmap
-* Support for many kinds of Go, Rust, Java, and Kotlin projects.
+* Support for many kinds of JavaScript, Go, Rust, Java, and Kotlin projects.
 * Build, test, lint, and auditing using best practices.
 * SBOM generation and signature.
 * Publish built artifacts also to GHCR and GitHub releases.
